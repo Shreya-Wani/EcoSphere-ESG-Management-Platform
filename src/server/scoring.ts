@@ -95,4 +95,7 @@ export async function getScore(
  */
 export function registerProviders() {
   // Providers are registered here by module owners.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { environmentalScoreProvider } = require('@/server/services/score/environmental')
+  registerProvider(environmentalScoreProvider) // Mitesh
 }
