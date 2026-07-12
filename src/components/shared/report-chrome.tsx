@@ -35,7 +35,7 @@ export function ReportChrome({
 }) {
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="inline-flex rounded-lg border border-black/10 bg-white p-1">
+      <div className="inline-flex rounded-lg border border-line bg-surface p-1">
         {RANGES.map((r) => (
           <button
             key={r.key}
@@ -43,7 +43,7 @@ export function ReportChrome({
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
               range === r.key
                 ? 'bg-brand-primary text-white'
-                : 'text-brand-muted hover:text-brand-text'
+                : 'text-ink-2 hover:text-ink'
             }`}
           >
             {r.label}

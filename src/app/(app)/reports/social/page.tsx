@@ -86,9 +86,9 @@ export default function SocialReportPage() {
         <ChartCard title="Social Score by Department">
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={chart} margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#9ca3af" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="var(--muted)" />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="var(--muted)" />
               <Tooltip cursor={{ fill: 'rgba(79,122,90,0.08)' }} />
               <Bar dataKey="score" radius={[6, 6, 0, 0]}>
                 {chart.map((_, i) => (
@@ -100,7 +100,7 @@ export default function SocialReportPage() {
         </ChartCard>
       </div>
 
-      <div className="rounded-xl border border-black/5 bg-white p-4">
+      <div className="rounded-xl border border-line bg-surface p-4">
         <DataTable columns={columns} data={filtered} loading={isLoading} />
       </div>
     </div>
