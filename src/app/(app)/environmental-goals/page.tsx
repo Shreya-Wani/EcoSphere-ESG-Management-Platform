@@ -72,7 +72,7 @@ export default function EnvironmentalGoalsPage() {
 
   const { data: departments = [] } = useQuery<Department[]>({
     queryKey: ['departments'],
-    queryFn: () => fetch('/api/departments').then(r => r.json()),
+    queryFn: () => fetch('/api/departments').then(r => r.json()).then(d => d.departments ?? []),
   })
 
   const filtered = useMemo(() => {

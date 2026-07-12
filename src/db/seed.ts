@@ -188,12 +188,22 @@ async function main() {
     .returning()
 
   // ---------- EMPLOYEE PARTICIPATIONS (mixed approval states) ----------
+  // Spread createdAt across the fiscal year so the report time-range
+  // filters (This month / This quarter / FY26) return distinct results:
+  // two rows land in the current month, three earlier in FY26.
+  const seedNow = new Date()
+  const fyYear = seedNow.getFullYear()
+  const daysAgo = (n: number) => {
+    const d = new Date(seedNow)
+    d.setDate(d.getDate() - n)
+    return d
+  }
   const participationSeed = [
-    { user: priya, activity: treePlant, status: 'APPROVED' as const, points: 100 },
-    { user: karan, activity: treePlant, status: 'APPROVED' as const, points: 100 },
-    { user: aditi, activity: beachClean, status: 'PENDING' as const, points: 0 },
-    { user: karan, activity: bloodDon, status: 'APPROVED' as const, points: 60 },
-    { user: priya, activity: esgWorkshop, status: 'REJECTED' as const, points: 0 },
+    { user: priya, activity: treePlant, status: 'APPROVED' as const, points: 100, createdAt: daysAgo(3) },
+    { user: karan, activity: treePlant, status: 'APPROVED' as const, points: 100, createdAt: daysAgo(1) },
+    { user: aditi, activity: beachClean, status: 'PENDING' as const, points: 0, createdAt: new Date(fyYear, 2, 12) },
+    { user: karan, activity: bloodDon, status: 'APPROVED' as const, points: 60, createdAt: new Date(fyYear, 4, 8) },
+    { user: priya, activity: esgWorkshop, status: 'REJECTED' as const, points: 0, createdAt: new Date(fyYear, 1, 18) },
   ]
   await db.insert(employeeParticipations).values(
     participationSeed.map((p) => ({
@@ -202,7 +212,8 @@ async function main() {
       proofUrl: p.activity.evidenceRequired ? 'https://example.com/proof.jpg' : null,
       approvalStatus: p.status,
       pointsEarned: p.points,
-      completionDate: p.status === 'APPROVED' ? new Date() : null,
+      completionDate: p.status === 'APPROVED' ? p.createdAt : null,
+      createdAt: p.createdAt,
     })),
   )
   // xp_ledger rows for approved CSR participations
@@ -239,8 +250,10 @@ async function main() {
     .returning()
 
   // ---------- COMPLIANCE ISSUES (ownerId + dueDate REQUIRED) ----------
-  const pastDue = new Date()
-  pastDue.setDate(pastDue.getDate() - 10) // overdue
+  // The OPEN overdue issue is dated in the current month (shows under every
+  // range); the RESOLVED one is earlier in FY26 (shows only under FY26), so
+  // the Governance report's closure rate differs across time ranges.
+  const pastDue = daysAgo(2) // due 2 days ago → overdue
   const futureDue = new Date()
   futureDue.setDate(futureDue.getDate() + 20)
   await db.insert(complianceIssues).values([
@@ -252,6 +265,7 @@ async function main() {
       ownerId: compliance.id,
       dueDate: pastDue, // OPEN + overdue → demo the overdue flag
       status: 'OPEN',
+      createdAt: daysAgo(8),
     },
     {
       auditId: vendorAudit.id,
@@ -261,7 +275,19 @@ async function main() {
       ownerId: compliance.id,
       dueDate: futureDue,
       status: 'RESOLVED',
-      resolutionDate: new Date(),
+      resolutionDate: new Date(fyYear, 3, 2),
+      createdAt: new Date(fyYear, 1, 10),
+    },
+    {
+      auditId: vendorAudit.id,
+      description: 'Update supplier code-of-conduct documentation.',
+      severity: 'LOW',
+      departmentId: log.id,
+      ownerId: compliance.id,
+      dueDate: new Date(fyYear, 5, 20),
+      status: 'RESOLVED',
+      resolutionDate: new Date(fyYear, 5, 18),
+      createdAt: new Date(fyYear, 5, 5), // Jun 5 → inside the trailing-quarter window
     },
   ])
 

@@ -16,8 +16,10 @@ export function rangeStart(range: TimeRange): Date {
   const now = new Date()
   if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1)
   if (range === 'quarter') {
-    const q = Math.floor(now.getMonth() / 3) * 3
-    return new Date(now.getFullYear(), q, 1)
+    // Rolling trailing-3-month window (not the calendar quarter), so
+    // "This quarter" stays distinct from "This month" even during the
+    // first month of a calendar quarter (e.g. July).
+    return new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
   }
   return new Date(now.getFullYear(), 0, 1)
 }

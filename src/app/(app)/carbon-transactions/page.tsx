@@ -92,7 +92,7 @@ export default function CarbonTransactionsPage() {
     queryKey: ['emission-factors'], queryFn: () => fetch('/api/emission-factors').then(r => r.json()),
   })
   const { data: departments = [] } = useQuery<Department[]>({
-    queryKey: ['departments'], queryFn: () => fetch('/api/departments').then(r => r.json()),
+    queryKey: ['departments'], queryFn: () => fetch('/api/departments').then(r => r.json()).then(d => d.departments ?? []),
   })
 
   const factorMap = useMemo(() => Object.fromEntries(factors.map(f => [f.id, f])), [factors])
