@@ -105,7 +105,11 @@ export function BadgesTable({ initialBadges, isAdmin }: { initialBadges: any[], 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Emoji Icon</label>
-                <input name="icon" required defaultValue="🏆" className="w-full border border-gray-300 rounded-md p-2 focus:ring-[#33503C] focus:border-[#33503C]" />
+                <select name="icon" required defaultValue="🏆" className="w-full border border-gray-300 rounded-md p-2 bg-white text-lg focus:ring-[#33503C] focus:border-[#33503C]">
+                  {["🏆","🥇","🥈","🥉","🏅","🎖️","⭐","🌟","✨","🌱","🌳","🌍","♻️","💧","⚡","🔥","🤝","❤️","🛡️","🎯","🚀","💎","👑"].map((emoji) => (
+                    <option key={emoji} value={emoji}>{emoji}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Threshold</label>

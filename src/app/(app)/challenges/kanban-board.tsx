@@ -16,6 +16,8 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
   const [challenges, setChallenges] = useState(initialChallenges);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
 
   // Group challenges by status
   const grouped = COLUMNS.reduce((acc, status) => {
@@ -57,6 +59,25 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
     }
   }
 
+  // Jira-style drag-and-drop: dropping a card on a column moves it to that
+  // column's status via the same action the "Advance" button uses.
+  async function handleDrop(targetStatus: string) {
+    const id = dragId;
+    setOverCol(null);
+    setDragId(null);
+    if (!id) return;
+    const card = challenges.find(c => c.id === id);
+    if (!card || card.status === targetStatus) return;
+
+    const previous = challenges;
+    setChallenges(prev => prev.map(c => (c.id === id ? { ...c, status: targetStatus } : c)));
+    try {
+      await updateChallengeStatus(id, targetStatus);
+    } catch {
+      setChallenges(previous); // revert on failure
+    }
+  }
+
   async function handleDelete(id: string) {
     if (confirm("Delete this draft challenge?")) {
       setChallenges(prev => prev.filter(c => c.id !== id));
@@ -74,7 +95,20 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
 
       <div className="flex gap-6 overflow-x-auto pb-4 h-full">
         {COLUMNS.map(col => (
-          <div key={col} className="min-w-[300px] w-[300px] flex flex-col bg-gray-50/50 rounded-xl border border-gray-200">
+          <div
+            key={col}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (overCol !== col) setOverCol(col);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol(null);
+            }}
+            onDrop={() => handleDrop(col)}
+            className={`min-w-[300px] w-[300px] flex flex-col rounded-xl border transition-colors ${
+              overCol === col ? "border-2 border-[#33503C] bg-[#33503C]/5" : "border-gray-200 bg-gray-50/50"
+            }`}
+          >
             <div className="p-4 border-b border-gray-200 bg-gray-100/50 rounded-t-xl">
               <h3 className="font-semibold text-gray-700 flex items-center justify-between">
                 {col.replace("_", " ")}
@@ -86,7 +120,21 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
             
             <div className="p-3 flex-1 overflow-y-auto space-y-3">
               {grouped[col].map(challenge => (
-                <div key={challenge.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div
+                  key={challenge.id}
+                  draggable
+                  onDragStart={(e) => {
+                    setDragId(challenge.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setOverCol(null);
+                  }}
+                  className={`bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing ${
+                    dragId === challenge.id ? "opacity-50 ring-2 ring-[#33503C]" : ""
+                  }`}
+                >
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-xs font-medium text-[#4F7A5A] bg-[#4F7A5A]/10 px-2 py-1 rounded">
                       {challenge.categoryName || "General"}

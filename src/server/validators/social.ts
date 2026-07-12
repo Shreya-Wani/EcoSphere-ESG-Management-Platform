@@ -23,7 +23,15 @@ export const participationJoinSchema = z.object({
 })
 
 export const participationProofSchema = z.object({
-  proofUrl: z.string().url('Must be a valid URL'),
+  // Accept either an external link or an uploaded image (data URL), so
+  // employees can upload a proof file without external blob storage.
+  proofUrl: z
+    .string()
+    .min(1, 'Proof is required')
+    .refine(
+      (s) => /^https?:\/\//.test(s) || /^data:image\//.test(s),
+      'Proof must be an uploaded image or a valid link',
+    ),
 })
 
 export type CsrActivityCreate = z.infer<typeof csrActivityCreateSchema>
