@@ -22,7 +22,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-brand-background text-brand-text">
+      <head>
+        {/* Apply the persisted theme before paint to avoid a flash of the
+            wrong palette. Presentational only — reads localStorage, sets a
+            class; no data or behavior involved. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem('es-theme')==='dark'){document.documentElement.classList.add('app-dark')}}catch(e){}`,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-canvas text-ink">
         <Providers>{children}</Providers>
       </body>
     </html>

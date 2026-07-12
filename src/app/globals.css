@@ -18,11 +18,93 @@
   --color-brand-muted: #6b7280; /* muted grey */
 
   --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Semantic surface/border/pill tokens — the refined prototype is built
+     entirely on these. Exposed as Tailwind utilities (bg-surface,
+     border-line, text-ink, …) so components can theme automatically. */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-canvas: var(--bg);
+  --color-hover: var(--hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-track: var(--track);
+  --color-line: var(--border);
+  --color-line-soft: var(--border-soft);
+  --color-input-line: var(--input-border);
+  --color-ink: var(--text);
+  --color-ink-2: var(--text-2);
+  --color-faint: var(--muted);
+  --color-tint-green: var(--tint-green);
+  --color-accent-line: var(--accent-border);
+  --color-pill-green-bg: var(--pill-green-bg);
+  --color-pill-green-fg: var(--pill-green-fg);
+  --color-pill-amber-bg: var(--pill-amber-bg);
+  --color-pill-amber-fg: var(--pill-amber-fg);
+  --color-pill-blue-bg: var(--pill-blue-bg);
+  --color-pill-blue-fg: var(--pill-blue-fg);
+  --color-pill-red-bg: var(--pill-red-bg);
+  --color-pill-red-fg: var(--pill-red-fg);
 }
 
+/* -------------------------------------------------------------
+   Themeable CSS variables (light default + .app-dark override).
+   Ported verbatim from the approved refined prototype so surfaces,
+   borders, text and status pills all respond to the active theme.
+   ------------------------------------------------------------- */
 :root {
   --background: var(--color-brand-background);
   --foreground: var(--color-brand-text);
+
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --surface-2: #f4f3ee;
+  --hover: #f3f2ed;
+  --accent-soft: #f5f8f5;
+  --track: #edece7;
+  --border: #e7e5e0;
+  --border-soft: #f0efea;
+  --input-border: #d9d7d0;
+  --text: #1f2937;
+  --text-2: #6b7280;
+  --muted: #9ca3af;
+  --pill-green-bg: #e5f0e8;
+  --pill-green-fg: #3d6b4a;
+  --pill-amber-bg: #fbf0db;
+  --pill-amber-fg: #96660c;
+  --pill-blue-bg: #e4edf8;
+  --pill-blue-fg: #2d5c9e;
+  --pill-red-bg: #fae7e4;
+  --pill-red-fg: #b03a2e;
+  --tint-green: #eef3ef;
+  --accent-border: #d9e4dc;
+}
+
+.app-dark {
+  --background: #0f1417;
+  --foreground: #e9eeeb;
+
+  --bg: #0f1417;
+  --surface: #1a2125;
+  --surface-2: #151b1e;
+  --hover: #222a2e;
+  --accent-soft: #18271f;
+  --track: #2a3236;
+  --border: #28312f;
+  --border-soft: #222a2c;
+  --input-border: #333c41;
+  --text: #e9eeeb;
+  --text-2: #9aa4a6;
+  --muted: #6f787c;
+  --pill-green-bg: rgba(79, 122, 90, 0.22);
+  --pill-green-fg: #7fc894;
+  --pill-amber-bg: rgba(217, 164, 65, 0.2);
+  --pill-amber-fg: #e3b563;
+  --pill-blue-bg: rgba(90, 140, 210, 0.22);
+  --pill-blue-fg: #93bbee;
+  --pill-red-bg: rgba(200, 70, 55, 0.24);
+  --pill-red-fg: #ec9488;
+  --tint-green: rgba(79, 122, 90, 0.16);
+  --accent-border: rgba(79, 122, 90, 0.3);
 }
 
 html {
@@ -30,10 +112,11 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  transition: background 0.35s ease, color 0.2s ease;
 }
 
 /* Thin, unobtrusive scrollbars to match the calm palette. */
@@ -42,10 +125,75 @@ body {
   scrollbar-color: #d6d3cc transparent;
 }
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 *::-webkit-scrollbar-thumb {
   background: #d6d3cc;
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #c2c0b8;
+  background-clip: content-box;
+}
+.app-dark *::-webkit-scrollbar-thumb {
+  background: #333c41;
+  background-clip: content-box;
+}
+
+/* Motion primitives used across the refined prototype. */
+@keyframes es-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes es-toast {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes es-shimmer {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+@keyframes es-drawer {
+  from {
+    transform: translateX(30px);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.animate-es-fade {
+  animation: es-fade 0.22s ease-out;
+}
+.animate-es-toast {
+  animation: es-toast 0.22s ease-out;
+}
+.animate-es-shimmer {
+  animation: es-shimmer 1.4s ease-in-out infinite;
+}
+.animate-es-drawer {
+  animation: es-drawer 0.24s ease-out;
 }

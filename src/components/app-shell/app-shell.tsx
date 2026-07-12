@@ -21,7 +21,7 @@ export function AppShell({ session, counts, children }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-brand-background">
+    <div className="flex h-screen overflow-hidden bg-canvas">
       <Sidebar
         session={session}
         counts={counts}
@@ -32,7 +32,9 @@ export function AppShell({ session, counts, children }: AppShellProps) {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar session={session} onMenuClick={() => setMobileNavOpen(true)} />
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
+          <div className="mx-auto w-full max-w-[1240px] px-5 py-6 sm:px-7 sm:py-7 lg:px-[30px] lg:py-[26px]">
+            {children}
+          </div>
         </main>
       </div>
     </div>
