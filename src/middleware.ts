@@ -7,6 +7,7 @@ const PUBLIC_PATHS = ['/sign-in']
 export const middleware = auth((req) => {
   const { pathname } = req.nextUrl
   const isPublic =
+    pathname === '/' || // marketing landing page (page.tsx redirects if signed in)
     PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
     pathname.startsWith('/api/auth') ||
     pathname === '/api/health'
