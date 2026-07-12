@@ -4,6 +4,19 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 
+// Seeded demo accounts (all share password `demo1234`) — one per role so the
+// permission model can be demoed by switching accounts, since role is assigned
+// per user, not chosen at login.
+const DEMO_ACCOUNTS: { label: string; email: string }[] = [
+  { label: 'Admin', email: 'admin@ecosphere.dev' },
+  { label: 'ESG Manager', email: 'esg@ecosphere.dev' },
+  { label: 'HR Manager', email: 'hr@ecosphere.dev' },
+  { label: 'Auditor', email: 'auditor@ecosphere.dev' },
+  { label: 'Compliance', email: 'compliance@ecosphere.dev' },
+  { label: 'Employee', email: 'priya@ecosphere.dev' },
+]
+const DEMO_PASSWORD = 'demo1234'
+
 export default function SignIn() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -11,15 +24,13 @@ export default function SignIn() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const login = async (loginEmail: string, loginPassword: string) => {
     setError('')
     setLoading(true)
-
     try {
       const result = await signIn('credentials', {
-        email,
-        password,
+        email: loginEmail,
+        password: loginPassword,
         redirect: false,
       })
 
@@ -35,6 +46,11 @@ export default function SignIn() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await login(email, password)
   }
 
   return (
@@ -123,9 +139,32 @@ export default function SignIn() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-[13px] text-ink-2">
-            Demo credentials: admin@ecosphere.dev / demo1234
-          </p>
+          <div className="mt-8">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="h-px flex-1 bg-input-line" />
+              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-2">
+                Quick demo login
+              </span>
+              <div className="h-px flex-1 bg-input-line" />
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {DEMO_ACCOUNTS.map((acct) => (
+                <button
+                  key={acct.email}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => login(acct.email, DEMO_PASSWORD)}
+                  className="rounded-lg border border-input-line bg-surface px-3 py-2 text-[12.5px] font-semibold text-ink transition-colors hover:border-brand-primary hover:bg-brand-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {acct.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-3 text-center text-[11.5px] text-ink-2">
+              Each account demonstrates a different role · password{' '}
+              <span className="font-medium">demo1234</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -87,6 +87,7 @@ const navGroups = [
     title: 'Settings',
     countKey: null,
     items: [
+      { label: 'Users & Roles', href: '/users', icon: Users },
       { label: 'Departments', href: '/departments', icon: Settings },
       { label: 'Categories', href: '/categories', icon: Settings },
       { label: 'ESG Configuration', href: '/esg-config', icon: Settings },
