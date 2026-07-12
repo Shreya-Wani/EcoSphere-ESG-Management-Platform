@@ -9,6 +9,19 @@
 // Module owners: register your provider once in registerProviders()
 // below (a one-line sanctioned cross-boundary edit). Do NOT change the
 // contract itself.
+//
+// ---------------------------------------------------------------
+// PILLAR OWNERS — HOW TO REGISTER YOUR REAL PROVIDER (read this):
+//   1. Implement the ScoreProvider contract below in YOUR module
+//      folder (e.g. src/server/.../environmental-score-provider.ts).
+//   2. In registerProviders() at the bottom of THIS file, REPLACE
+//      your pillar's stub line with your real provider, e.g.:
+//         registerProvider(environmentalScoreProvider)  // Mitesh
+//      This single-line edit is the ONE sanctioned cross-boundary
+//      edit to this file. Do not touch anything else here.
+// The stub providers below return 0 so the wiring works and the
+// dashboard/engine run before your real providers land.
+// ---------------------------------------------------------------
 // =============================================================
 
 export type ScorePeriod = string // "2026-07"
@@ -85,14 +98,55 @@ export async function getScore(
   return { total: Math.round(total * 100) / 100, breakdown }
 }
 
+// =============================================================
+// STUB PROVIDERS — one per pillar, each returns 0.
+// These exist so the registry/engine/dashboard have something to
+// fan in over before the real pillar providers land. Pillar owners:
+// REPLACE your stub in registerProviders() with your real provider.
+// =============================================================
+export const environmentalScoreStub: ScoreProvider = {
+  pillar: 'environmental',
+  name: 'environmental-stub',
+  async getScore() {
+    return 0
+  },
+}
+
+export const socialScoreStub: ScoreProvider = {
+  pillar: 'social',
+  name: 'social-stub',
+  async getScore() {
+    return 0
+  },
+}
+
+export const governanceScoreStub: ScoreProvider = {
+  pillar: 'governance',
+  name: 'governance-stub',
+  async getScore() {
+    return 0
+  },
+}
+
 /**
  * Central registration point for domain ScoreProviders.
- * Sanctioned cross-boundary edit: each module owner adds ONE line here.
+ * Sanctioned cross-boundary edit: each module owner REPLACES their
+ * pillar's stub line below with ONE line registering their real
+ * provider, e.g.:
  *
  *   registerProvider(environmentalScoreProvider)  // Mitesh
  *   registerProvider(socialScoreProvider)         // Hetvi
  *   registerProvider(governanceScoreProvider)     // Hetvi
+ *
+ * Guarded so it's safe to call more than once (idempotent).
  */
+let registered = false
 export function registerProviders() {
-  // Providers are registered here by module owners.
+  if (registered) return
+  registered = true
+
+  // --- STUBS (replace with your real provider) ---
+  registerProvider(environmentalScoreStub) // Mitesh — replace with real environmental provider
+  registerProvider(socialScoreStub) // Hetvi — replace with real social provider
+  registerProvider(governanceScoreStub) // Hetvi — replace with real governance provider
 }
