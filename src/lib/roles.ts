@@ -10,17 +10,49 @@ export type Role =
  * Client-side permission helpers for showing/hiding UI affordances only.
  * The server permission matrix (permissions.ts) is the authoritative gate
  * and independently returns 403 — this just avoids offering dead buttons.
+ * These MUST stay in sync with permissions.ts.
  */
+const isAny =
+  (...roles: Role[]) =>
+  (r: Role) =>
+    roles.includes(r)
+
 export const can = {
-  manageCsr: (r: Role) => r === 'ADMIN' || r === 'HR_MANAGER',
-  joinActivity: (r: Role) => r === 'ADMIN' || r === 'HR_MANAGER' || r === 'EMPLOYEE',
-  approveParticipation: (r: Role) => r === 'ADMIN' || r === 'HR_MANAGER',
-  managePolicy: (r: Role) => r === 'ADMIN' || r === 'COMPLIANCE_OFFICER',
-  acknowledge: (r: Role) => r === 'ADMIN' || r === 'COMPLIANCE_OFFICER' || r === 'EMPLOYEE',
-  manageAudit: (r: Role) => r === 'ADMIN' || r === 'AUDITOR',
-  manageCompliance: (r: Role) =>
-    r === 'ADMIN' || r === 'COMPLIANCE_OFFICER' || r === 'AUDITOR',
-  resolveCompliance: (r: Role) => r === 'ADMIN' || r === 'COMPLIANCE_OFFICER',
-  recalculate: (r: Role) => r === 'ADMIN' || r === 'ESG_MANAGER',
-  remove: (r: Role) => r === 'ADMIN',
+  // --- Environmental (Mitesh) ---
+  manageEmissionFactor: isAny('ADMIN', 'ESG_MANAGER'),
+  manageProductProfile: isAny('ADMIN', 'ESG_MANAGER'),
+  manageGoal: isAny('ADMIN', 'ESG_MANAGER'),
+  createCarbon: isAny('ADMIN', 'ESG_MANAGER', 'EMPLOYEE'),
+  manageCarbon: isAny('ADMIN', 'ESG_MANAGER'), // edit / delete / advance status
+
+  // --- Categories & Departments (Shivam / admin master data) ---
+  manageCategory: isAny('ADMIN'),
+  manageDepartment: isAny('ADMIN'),
+
+  // --- Social (Hetvi) ---
+  manageCsr: isAny('ADMIN', 'HR_MANAGER'),
+  joinActivity: isAny('ADMIN', 'ESG_MANAGER', 'HR_MANAGER', 'AUDITOR', 'COMPLIANCE_OFFICER', 'EMPLOYEE'),
+  approveParticipation: isAny('ADMIN', 'HR_MANAGER'),
+
+  // --- Governance (Hetvi) ---
+  managePolicy: isAny('ADMIN', 'COMPLIANCE_OFFICER'),
+  acknowledge: isAny('ADMIN', 'ESG_MANAGER', 'HR_MANAGER', 'AUDITOR', 'COMPLIANCE_OFFICER', 'EMPLOYEE'),
+  manageAudit: isAny('ADMIN', 'AUDITOR'),
+  manageCompliance: isAny('ADMIN', 'COMPLIANCE_OFFICER', 'AUDITOR'),
+  resolveCompliance: isAny('ADMIN', 'COMPLIANCE_OFFICER'),
+
+  // --- Gamification (Shreya) ---
+  manageChallenge: isAny('ADMIN', 'HR_MANAGER'),
+  joinChallenge: isAny('ADMIN', 'ESG_MANAGER', 'HR_MANAGER', 'AUDITOR', 'COMPLIANCE_OFFICER', 'EMPLOYEE'),
+  approveChallenge: isAny('ADMIN', 'HR_MANAGER'),
+  manageReward: isAny('ADMIN', 'HR_MANAGER'),
+  redeemReward: isAny('ADMIN', 'ESG_MANAGER', 'HR_MANAGER', 'AUDITOR', 'COMPLIANCE_OFFICER', 'EMPLOYEE'),
+  manageBadge: isAny('ADMIN'),
+
+  // --- Platform ---
+  recalculate: isAny('ADMIN', 'ESG_MANAGER'),
+  manageConfig: isAny('ADMIN'),
+
+  /** @deprecated prefer the entity-specific manage* helper. Kept for existing callers. */
+  remove: isAny('ADMIN'),
 }

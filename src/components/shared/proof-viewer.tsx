@@ -12,7 +12,7 @@
 // Participation so every "View" surfaces the same preview.
 // =============================================================
 import { useRef, useState } from 'react'
-import { ExternalLink, Upload, X, Loader2 } from 'lucide-react'
+import { ImageIcon, Upload, X, Loader2 } from 'lucide-react'
 
 const MAX_BYTES = 2 * 1024 * 1024 // 2 MB — keeps the data-URL payload sane
 
@@ -29,16 +29,21 @@ export function ProofButton({
   label?: string
 }) {
   const [open, setOpen] = useState(false)
-  if (!url) return <span className="text-ink-2">—</span>
+  if (!url)
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-dashed border-line px-2 py-1 text-[11px] font-medium text-faint">
+        No proof
+      </span>
+    )
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 text-brand-primary hover:underline"
+        className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1 text-xs font-medium text-brand-primary transition hover:border-brand-primary/40 hover:bg-brand-primary/5"
       >
-        <ExternalLink className="h-3.5 w-3.5" /> {label}
+        <ImageIcon className="h-3.5 w-3.5" /> {label}
       </button>
 
       {open && (

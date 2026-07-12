@@ -62,6 +62,7 @@ export default function DepartmentsPage() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Department | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ['departments'],
@@ -102,12 +103,18 @@ export default function DepartmentsPage() {
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/departments/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Delete failed')
+      if (!res.ok) {
+        // Surface the server's reason (e.g. FK conflict) instead of a generic string.
+        const data = await res.json().catch(() => null)
+        throw new Error((data && data.error) || 'Delete failed')
+      }
     },
     onSuccess: () => {
       invalidate()
       setConfirmDelete(null)
+      setDeleteError(null)
     },
+    onError: (e: Error) => setDeleteError(e.message),
   })
 
   function openCreate() {
@@ -265,14 +272,25 @@ export default function DepartmentsPage() {
 
       <ConfirmDialog
         open={!!confirmDelete}
-        onOpenChange={(o) => !o && setConfirmDelete(null)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setConfirmDelete(null)
+            setDeleteError(null)
+          }
+        }}
         title="Delete department?"
-        description={`This permanently removes "${confirmDelete?.name}". This cannot be undone.`}
+        description={
+          deleteError ??
+          `This permanently removes "${confirmDelete?.name}". This cannot be undone.`
+        }
         action="Delete"
         variant="destructive"
         loading={remove.isPending}
         onConfirm={() => {
-          if (confirmDelete) remove.mutate(confirmDelete.id)
+          if (confirmDelete) {
+            setDeleteError(null)
+            remove.mutate(confirmDelete.id)
+          }
         }}
       />
     </div>

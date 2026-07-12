@@ -19,11 +19,7 @@ export const GET = withAuth(async (_req: NextRequest, ctx: any) => {
 })
 
 export const POST = withAuth(async (req: NextRequest, ctx: any) => {
-  // Spec: create = ADMIN | ESG_MANAGER
-  const role = (ctx.session.user as any).role
-  if (!['ADMIN', 'ESG_MANAGER'].includes(role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  requirePermission(ctx.session, 'emissionFactor', 'create')
   const body = await req.json()
   const data = emissionFactorSchema.parse(body)
   const created = await createEmissionFactor(data)

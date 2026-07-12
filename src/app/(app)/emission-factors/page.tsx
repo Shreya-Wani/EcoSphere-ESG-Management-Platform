@@ -4,6 +4,10 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { Plus, Trash2, Pencil, Search, X } from 'lucide-react'
+import { useToast } from '@/components/shared/toast'
+import { useCurrentUser } from '@/lib/hooks'
+import { can } from '@/lib/roles'
+import { apiPost, apiPatch, apiDelete, ApiError } from '@/lib/api'
 
 // ---------- Types ----------
 type EmissionFactor = {
@@ -60,6 +64,9 @@ function StatusBadge({ status }: { status: string }) {
 // ---------- Main page ----------
 export default function EmissionFactorsPage() {
   const qc = useQueryClient()
+  const { toast } = useToast()
+  const { role } = useCurrentUser()
+  const canManage = can.manageEmissionFactor(role)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<EmissionFactor | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<EmissionFactor | null>(null)
@@ -85,18 +92,30 @@ export default function EmissionFactorsPage() {
   })
 
   const saveMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: (values: FormValues) => {
       const payload = { ...values, co2PerUnit: Number(values.co2PerUnit), source: values.source || undefined, country: values.country || undefined, effectiveDate: values.effectiveDate || undefined }
-      const url = selected ? `/api/emission-factors/${selected.id}` : '/api/emission-factors'
-      const method = selected ? 'PATCH' : 'POST'
-      return fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json())
+      return selected
+        ? apiPatch(`/api/emission-factors/${selected.id}`, payload)
+        : apiPost('/api/emission-factors', payload)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['emission-factors'] }); closeDrawer() },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['emission-factors'] })
+      toast({ title: selected ? 'Factor updated' : 'Factor created' })
+      closeDrawer()
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Save failed', description: e.message, variant: 'error' }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => fetch(`/api/emission-factors/${id}`, { method: 'DELETE' }).then(r => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['emission-factors'] }); setDeleteTarget(null) },
+    mutationFn: (id: string) => apiDelete(`/api/emission-factors/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['emission-factors'] })
+      toast({ title: 'Factor deleted' })
+      setDeleteTarget(null)
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Delete failed', description: e.message, variant: 'error' }),
   })
 
   const openCreate = () => { setSelected(null); reset({ name: '', category: 'FUEL', unit: '', co2PerUnit: 0, source: '', country: '', effectiveDate: '', status: 'ACTIVE' }); setDrawerOpen(true) }
@@ -117,10 +136,12 @@ export default function EmissionFactorsPage() {
             {isLoading ? '…' : `${factors.length} records`} · CO₂ equivalents per emission unit
           </p>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-dark transition-colors">
-          <Plus className="w-4 h-4" />
-          New Factor
-        </button>
+        {canManage && (
+          <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-dark transition-colors">
+            <Plus className="w-4 h-4" />
+            New Factor
+          </button>
+        )}
       </div>
 
       {/* Filter bar */}
@@ -177,8 +198,8 @@ export default function EmissionFactorsPage() {
               filtered.map(factor => (
                 <tr
                   key={factor.id}
-                  onClick={() => openEdit(factor)}
-                  className="hover:bg-accent-soft cursor-pointer transition-colors group"
+                  onClick={() => canManage && openEdit(factor)}
+                  className={`hover:bg-accent-soft transition-colors group ${canManage ? 'cursor-pointer' : ''}`}
                 >
                   <td className="px-5 py-3.5 font-medium text-ink">{factor.name}</td>
                   <td className="px-5 py-3.5"><CategoryPill category={factor.category} /></td>
@@ -187,12 +208,14 @@ export default function EmissionFactorsPage() {
                   <td className="px-5 py-3.5 text-ink-2 text-xs">{factor.source ?? <span className="text-faint">—</span>}</td>
                   <td className="px-5 py-3.5"><StatusBadge status={factor.status} /></td>
                   <td className="px-5 py-3.5">
-                    <button
-                      onClick={e => { e.stopPropagation(); setDeleteTarget(factor) }}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {canManage && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setDeleteTarget(factor) }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

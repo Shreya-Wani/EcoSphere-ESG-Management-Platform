@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { ZodError } from 'zod'
+import { isForeignKeyViolation, foreignKeyMessage } from '@/server/db-errors'
 
 type Handler = (req: NextRequest, ctx?: any) => Promise<NextResponse | Response>
 
@@ -26,6 +27,13 @@ export function withAuth(handler: Handler) {
 
       if (error instanceof Response) {
         return error
+      }
+
+      // A blocked delete (or a bad link on insert/update) is a client-fixable
+      // conflict, not a server fault — surface a clear reason with 409 instead
+      // of a generic 500. See src/server/db-errors.ts.
+      if (isForeignKeyViolation(error)) {
+        return NextResponse.json({ error: foreignKeyMessage(error) }, { status: 409 })
       }
 
       console.error('API error:', error)

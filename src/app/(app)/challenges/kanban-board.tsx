@@ -8,10 +8,11 @@ import { createChallenge, updateChallengeStatus, deleteChallenge } from "./actio
 // Define the 5 explicit statuses from the schema
 const COLUMNS = ["DRAFT", "UNDER_REVIEW", "ACTIVE", "COMPLETED", "ARCHIVED"] as const;
 
-export function KanbanBoard({ initialChallenges, categories, badges }: { 
+export function KanbanBoard({ initialChallenges, categories, badges, canManage }: {
   initialChallenges: any[],
   categories: any[],
-  badges: any[]
+  badges: any[],
+  canManage: boolean
 }) {
   const [challenges, setChallenges] = useState(initialChallenges);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -79,19 +80,26 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
   }
 
   async function handleDelete(id: string) {
-    if (confirm("Delete this draft challenge?")) {
-      setChallenges(prev => prev.filter(c => c.id !== id));
+    if (!confirm("Delete this draft challenge?")) return;
+    const previous = challenges;
+    setChallenges(prev => prev.filter(c => c.id !== id)); // optimistic
+    try {
       await deleteChallenge(id);
+    } catch (err: any) {
+      setChallenges(previous); // revert on failure
+      alert(err?.message ?? "Delete failed");
     }
   }
 
   return (
     <div className="h-full flex flex-col">
-      <div className="mb-6">
-        <Button onClick={() => setDrawerOpen(true)} className="bg-brand-primary-darker hover:bg-brand-primary-dark text-white">
-          + Create Challenge
-        </Button>
-      </div>
+      {canManage && (
+        <div className="mb-6">
+          <Button onClick={() => setDrawerOpen(true)} className="bg-brand-primary-darker hover:bg-brand-primary-dark text-white">
+            + Create Challenge
+          </Button>
+        </div>
+      )}
 
       <div className="flex gap-6 overflow-x-auto pb-4 h-full">
         {COLUMNS.map(col => (
@@ -122,8 +130,9 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
               {grouped[col].map(challenge => (
                 <div
                   key={challenge.id}
-                  draggable
+                  draggable={canManage}
                   onDragStart={(e) => {
+                    if (!canManage) return;
                     setDragId(challenge.id);
                     e.dataTransfer.effectAllowed = "move";
                   }}
@@ -131,7 +140,9 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
                     setDragId(null);
                     setOverCol(null);
                   }}
-                  className={`bg-surface p-4 rounded-lg shadow-[0_1px_2px_rgba(31,41,55,.04)] border border-line-soft hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing ${
+                  className={`bg-surface p-4 rounded-lg shadow-[0_1px_2px_rgba(31,41,55,.04)] border border-line-soft hover:shadow-md transition-shadow ${
+                    canManage ? "cursor-grab active:cursor-grabbing" : ""
+                  } ${
                     dragId === challenge.id ? "opacity-50 ring-2 ring-brand-primary-darker" : ""
                   }`}
                 >
@@ -147,7 +158,7 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
                   <p className="text-xs text-ink-2 line-clamp-2 mb-3">{challenge.description}</p>
 
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-line-soft">
-                    {col === "DRAFT" ? (
+                    {col === "DRAFT" && canManage ? (
                       <button onClick={() => handleDelete(challenge.id)} className="text-xs text-pill-red-fg hover:underline">
                         Delete
                       </button>
@@ -157,8 +168,8 @@ export function KanbanBoard({ initialChallenges, categories, badges }: {
                       </span>
                     )}
 
-                    {col !== "ARCHIVED" && (
-                      <button 
+                    {col !== "ARCHIVED" && canManage && (
+                      <button
                         onClick={() => handleAdvanceStatus(challenge.id, challenge.status)}
                         className="text-xs font-medium text-brand-primary-darker hover:underline flex items-center gap-1"
                       >

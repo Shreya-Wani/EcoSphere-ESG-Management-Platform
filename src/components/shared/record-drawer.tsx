@@ -19,6 +19,14 @@ interface RecordDrawerProps {
   onSave?: () => void | Promise<void>
   onDiscard?: () => void
   loading?: boolean
+  /**
+   * When true the drawer becomes a read-only detail view: every form control
+   * inside is disabled (native `<fieldset disabled>`) and the Save button is
+   * replaced by a single Close button. Used so records stay clickable for
+   * roles that can view but not edit them.
+   */
+  readOnly?: boolean
+  saveLabel?: string
 }
 
 export function RecordDrawer({
@@ -30,6 +38,8 @@ export function RecordDrawer({
   onSave,
   onDiscard,
   loading = false,
+  readOnly = false,
+  saveLabel = 'Save',
 }: RecordDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -38,15 +48,25 @@ export function RecordDrawer({
           <SheetTitle>{title}</SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 py-6">{children}</div>
+        <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+          <div className="flex-1 py-6">{children}</div>
+        </fieldset>
 
         <SheetFooter className="-mx-6 -mb-6 flex gap-2 border-t border-line-soft bg-surface px-6 py-4">
-          <Button variant="outline" onClick={onDiscard} disabled={loading}>
-            Discard
-          </Button>
-          <Button onClick={onSave} disabled={loading}>
-            {loading ? 'Saving...' : 'Save'}
-          </Button>
+          {readOnly ? (
+            <Button variant="outline" onClick={onDiscard} disabled={loading}>
+              Close
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onDiscard} disabled={loading}>
+                Discard
+              </Button>
+              <Button onClick={onSave} disabled={loading}>
+                {loading ? 'Saving...' : saveLabel}
+              </Button>
+            </>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>

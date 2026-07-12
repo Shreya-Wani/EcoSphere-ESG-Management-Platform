@@ -33,7 +33,7 @@ export async function listCsrActivities(): Promise<CsrActivityView[]> {
     })
     .from(csrActivities)
     .leftJoin(categories, eq(csrActivities.categoryId, categories.id))
-    .orderBy(desc(csrActivities.status), csrActivities.title)
+    .orderBy(desc(csrActivities.status), desc(csrActivities.createdAt))
 
   const counts = await db
     .select({ activityId: employeeParticipations.activityId, c: count() })

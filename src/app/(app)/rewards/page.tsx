@@ -10,7 +10,7 @@ export const metadata = {
 export default async function RewardsPage() {
   const session = await auth();
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect("/sign-in");
   }
 
   const userId = session.user.id;
@@ -45,11 +45,10 @@ export default async function RewardsPage() {
       </header>
       
       <main className="flex-1 w-full max-w-7xl mx-auto px-8 py-8">
-        <RewardsCatalog 
-          initialRewards={rewards} 
-          walletBalance={walletBalance} 
-          userId={userId} 
-          isAdmin={userRole === "HR_MANAGER" || userRole === "ESG_MANAGER" || userRole === "ADMIN"}
+        <RewardsCatalog
+          initialRewards={rewards}
+          walletBalance={walletBalance}
+          isAdmin={userRole === "HR_MANAGER" || userRole === "ADMIN"}
         />
       </main>
     </div>

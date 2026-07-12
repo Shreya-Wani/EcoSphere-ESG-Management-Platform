@@ -84,7 +84,6 @@ export default function ComplianceIssuesPage() {
     setDrawerOpen(true)
   }
   const openEdit = (i: ComplianceIssueView) => {
-    if (!canManage) return
     setForm({
       id: i.id,
       auditId: i.auditId ?? '',
@@ -245,10 +244,11 @@ export default function ComplianceIssuesPage() {
       <RecordDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        title={form.id ? 'Edit Compliance Issue' : 'New Compliance Issue'}
+        title={form.id ? (canManage ? 'Edit Compliance Issue' : 'Compliance issue details') : 'New Compliance Issue'}
         onSave={save}
         onDiscard={() => setDrawerOpen(false)}
         loading={saving}
+        readOnly={!!form.id && !canManage}
       >
         <div className="space-y-4">
           <FormField label="Description" required>

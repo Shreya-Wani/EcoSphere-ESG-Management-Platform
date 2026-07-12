@@ -5,19 +5,23 @@ import { rewards } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { redeem, getPointsBalance } from "@/server/services/gamification/reward";
 import { revalidatePath } from "next/cache";
+import { requireActionRole, requireActionSession } from "@/server/action-guards";
 
-// Admin action to fetch all, employee action to fetch ACTIVE is handled by UI filter for simplicity, 
-// or we can fetch only ACTIVE. We'll fetch all and let UI sort it out based on role.
+// Newest rewards first so freshly-added items surface at the top.
 export async function fetchCatalog() {
-  return await db.select().from(rewards); // Removed orderBy since createdAt doesn't exist
+  return await db.select().from(rewards).orderBy(desc(rewards.createdAt));
 }
 
 export async function fetchWalletBalance(userId: string) {
   return await getPointsBalance(userId);
 }
 
-export async function checkoutReward(userId: string, rewardId: string) {
+// Redeems for the CURRENTLY SIGNED-IN user — the reward recipient is taken
+// from the session, never from a client-supplied id (prevents redeeming
+// against another user's balance).
+export async function checkoutReward(rewardId: string) {
   try {
+    const { userId } = await requireActionSession();
     const result = await redeem(userId, rewardId);
     revalidatePath("/rewards");
     return { success: true, reward: result };
@@ -27,6 +31,7 @@ export async function checkoutReward(userId: string, rewardId: string) {
 }
 
 export async function createRewardItem(formData: FormData) {
+  await requireActionRole("ADMIN", "HR_MANAGER"); // reward.create
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
   const pointsRequired = parseInt(formData.get("pointsRequired") as string);
@@ -44,6 +49,7 @@ export async function createRewardItem(formData: FormData) {
 }
 
 export async function updateRewardStock(id: string, newStock: number) {
+  await requireActionRole("ADMIN", "HR_MANAGER"); // reward.update
   await db.update(rewards).set({ stock: newStock }).where(eq(rewards.id, id));
   revalidatePath("/rewards");
 }

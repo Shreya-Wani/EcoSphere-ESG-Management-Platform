@@ -14,12 +14,8 @@ import {
 } from '@/server/services/env/emission-factors'
 
 export const PATCH = withAuth(async (req: NextRequest, ctx: any) => {
-  // Spec: update = ADMIN | ESG_MANAGER
-  const role = (ctx.session.user as any).role
-  if (!['ADMIN', 'ESG_MANAGER'].includes(role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-  const id = ctx.params.id as string
+  requirePermission(ctx.session, 'emissionFactor', 'update')
+  const { id } = await ctx.params
   const existing = await getEmissionFactorById(id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -30,8 +26,8 @@ export const PATCH = withAuth(async (req: NextRequest, ctx: any) => {
 })
 
 export const DELETE = withAuth(async (_req: NextRequest, ctx: any) => {
-  requirePermission(ctx.session, 'emissionFactor', 'delete') // ADMIN only
-  const id = ctx.params.id as string
+  requirePermission(ctx.session, 'emissionFactor', 'delete')
+  const { id } = await ctx.params
   const existing = await getEmissionFactorById(id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

@@ -5,6 +5,7 @@ import { db } from '@/db'
 import { esgConfig } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { esgConfigUpdateSchema } from '@/server/validators/platform'
+import { recalculateScores } from '@/server/services/score/recalculate'
 
 /** Fetch the singleton config row, creating it with defaults if absent. */
 async function getOrCreateConfig() {
@@ -34,6 +35,14 @@ export const PATCH = withAuth(async (req: NextRequest, ctx?: any) => {
     .set(body)
     .where(eq(esgConfig.id, current.id))
     .returning()
+
+  // Re-weight department scores so a weights/rules change takes effect
+  // immediately on the dashboard and reports. Never fails the save.
+  try {
+    await recalculateScores()
+  } catch (err) {
+    console.error('[esg-config] recalculate after save failed', err)
+  }
 
   return NextResponse.json(updated)
 })

@@ -63,6 +63,7 @@ export const categories = pgTable("categories", {
   name: varchar("name", { length: 120 }).notNull(),
   type: categoryTypeEnum("type").notNull(), // CSR_ACTIVITY | CHALLENGE
   status: statusEnum("status").default("ACTIVE").notNull(),
+  createdAt: createdAt(),
 });
 
 // ---------- ENVIRONMENTAL (owner: Mitesh) ----------
@@ -76,6 +77,7 @@ export const emissionFactors = pgTable("emission_factors", {
   country: varchar("country", { length: 80 }),
   effectiveDate: timestamp("effective_date"),
   status: statusEnum("status").default("ACTIVE").notNull(),
+  createdAt: createdAt(),
 });
 
 export const productEsgProfiles = pgTable("product_esg_profiles", {
@@ -86,6 +88,7 @@ export const productEsgProfiles = pgTable("product_esg_profiles", {
   hazardous: boolean("hazardous").default(false).notNull(),
   greenAlternative: varchar("green_alternative", { length: 160 }),
   carbonCategory: emissionCategoryEnum("carbon_category"),
+  createdAt: createdAt(),
 });
 
 export const environmentalGoals = pgTable("environmental_goals", {
@@ -127,6 +130,7 @@ export const csrActivities = pgTable("csr_activities", {
   evidenceRequired: boolean("evidence_required").default(true).notNull(),
   points: integer("points").default(50).notNull(),
   status: statusEnum("status").default("ACTIVE").notNull(),
+  createdAt: createdAt(),
 }, (t) => [index("csr_status_idx").on(t.status)]);
 
 export const employeeParticipations = pgTable("employee_participations", {
@@ -154,6 +158,7 @@ export const esgPolicies = pgTable("esg_policies", {
   effectiveDate: timestamp("effective_date"),
   mandatory: boolean("mandatory").default(true).notNull(),
   status: statusEnum("status").default("ACTIVE").notNull(),
+  createdAt: createdAt(),
 });
 
 export const policyAcknowledgements = pgTable("policy_acknowledgements", {
@@ -171,6 +176,7 @@ export const audits = pgTable("audits", {
   date: timestamp("date"),
   findings: text("findings"),
   status: complianceStatusEnum("status").default("OPEN").notNull(),
+  createdAt: createdAt(),
 });
 
 export const complianceIssues = pgTable("compliance_issues", {
@@ -226,6 +232,7 @@ export const badges = pgTable("badges", {
   unlockXp: integer("unlock_xp"),                               // award when totalXp >= unlockXp
   unlockChallenges: integer("unlock_challenges"),               // or completed-challenge count >=
   status: statusEnum("status").default("ACTIVE").notNull(),
+  createdAt: createdAt(),
 });
 
 export const badgeAwards = pgTable("badge_awards", {
@@ -242,6 +249,7 @@ export const rewards = pgTable("rewards", {
   pointsRequired: integer("points_required").notNull(),
   stock: integer("stock").default(0).notNull(),
   status: statusEnum("status").default("ACTIVE").notNull(),
+  createdAt: createdAt(),
 });
 
 export const rewardRedemptions = pgTable("reward_redemptions", {

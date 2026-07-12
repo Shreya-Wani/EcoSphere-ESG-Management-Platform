@@ -19,7 +19,7 @@ import { updateGoalProgress } from '@/server/services/env/goals'
 
 export const PATCH = withAuth(async (req: NextRequest, ctx: any) => {
   requirePermission(ctx.session, 'carbon', 'update')
-  const id = ctx.params.id as string
+  const { id } = await ctx.params
   const existing = await getCarbonTransactionById(id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -47,7 +47,7 @@ export const PATCH = withAuth(async (req: NextRequest, ctx: any) => {
 
 export const DELETE = withAuth(async (_req: NextRequest, ctx: any) => {
   requirePermission(ctx.session, 'carbon', 'delete')
-  const id = ctx.params.id as string
+  const { id } = await ctx.params
   const existing = await getCarbonTransactionById(id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

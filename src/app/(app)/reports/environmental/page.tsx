@@ -56,11 +56,18 @@ export default function EnvironmentalReportPage() {
   const totalCo2 = filtered.reduce((a, t) => a + Number(t.calculatedCo2 || 0), 0)
   const needsReview = filtered.filter((t) => t.status === 'NEEDS_REVIEW').length
 
-  const chart =
-    board?.departments.map((d) => ({
-      name: d.departmentName,
-      score: Math.round(d.environmental),
-    })) ?? []
+  // CO₂e by department for the selected range, so the chart moves with the
+  // filter (dept pillar scores are a point-in-time snapshot, not range-based).
+  const chart = useMemo(() => {
+    const byDept = new Map<string, number>()
+    for (const t of filtered) {
+      const key = t.departmentName ?? 'Unassigned'
+      byDept.set(key, (byDept.get(key) ?? 0) + Number(t.calculatedCo2 || 0))
+    }
+    return Array.from(byDept, ([name, co2]) => ({ name, co2: Math.round(co2) })).sort(
+      (a, b) => b.co2 - a.co2,
+    )
+  }, [filtered])
 
   const exportCsv = () =>
     downloadCsv(
@@ -113,14 +120,14 @@ export default function EnvironmentalReportPage() {
       </div>
 
       <div className="mb-6">
-        <ChartCard title="Environmental Score by Department">
+        <ChartCard title="CO₂e by Department (selected range)">
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={chart} margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="var(--muted)" />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="var(--muted)" />
+              <YAxis tick={{ fontSize: 12 }} stroke="var(--muted)" />
               <Tooltip cursor={{ fill: 'rgba(79,122,90,0.08)' }} />
-              <Bar dataKey="score" radius={[6, 6, 0, 0]}>
+              <Bar dataKey="co2" radius={[6, 6, 0, 0]}>
                 {chart.map((_, i) => (
                   <Cell key={i} fill="#8fb89a" />
                 ))}

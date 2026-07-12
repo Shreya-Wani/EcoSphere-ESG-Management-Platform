@@ -4,6 +4,10 @@ import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useWatch } from 'react-hook-form'
 import { Plus, Trash2, Search, X, CheckCircle, ShieldCheck, AlertCircle } from 'lucide-react'
+import { useToast } from '@/components/shared/toast'
+import { useCurrentUser } from '@/lib/hooks'
+import { can } from '@/lib/roles'
+import { apiPost, apiPatch, apiDelete, ApiError } from '@/lib/api'
 
 // ---------- Types ----------
 type EmissionFactor = { id: string; name: string; unit: string; co2PerUnit: number; status: string }
@@ -75,6 +79,10 @@ function KpiCard({ label, value, sub, color = 'default' }: { label: string; valu
 
 export default function CarbonTransactionsPage() {
   const qc = useQueryClient()
+  const { toast } = useToast()
+  const { role } = useCurrentUser()
+  const canCreate = can.createCarbon(role)
+  const canManage = can.manageCarbon(role) // edit / delete / advance status
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<CarbonTx | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CarbonTx | null>(null)
@@ -115,23 +123,44 @@ export default function CarbonTransactionsPage() {
   }, [watchedFactorId, watchedQty, factorMap])
 
   const saveMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: (values: FormValues) => {
       const payload = { ...values, quantity: Number(values.quantity) }
-      const url = selected ? `/api/carbon/${selected.id}` : '/api/carbon'
-      return fetch(url, { method: selected ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json())
+      return selected ? apiPatch(`/api/carbon/${selected.id}`, payload) : apiPost('/api/carbon', payload)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['carbon'] }); qc.invalidateQueries({ queryKey: ['carbon-kpis'] }); closeDrawer() },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['carbon'] })
+      qc.invalidateQueries({ queryKey: ['carbon-kpis'] })
+      toast({ title: selected ? 'Transaction updated' : 'Transaction logged' })
+      closeDrawer()
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Save failed', description: e.message, variant: 'error' }),
   })
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      fetch(`/api/carbon/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }).then(r => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['carbon'] }); qc.invalidateQueries({ queryKey: ['carbon-kpis'] }); qc.invalidateQueries({ queryKey: ['goals'] }); closeDrawer() },
+      apiPatch(`/api/carbon/${id}`, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['carbon'] })
+      qc.invalidateQueries({ queryKey: ['carbon-kpis'] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      toast({ title: 'Status updated' })
+      closeDrawer()
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Update failed', description: e.message, variant: 'error' }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => fetch(`/api/carbon/${id}`, { method: 'DELETE' }).then(r => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['carbon'] }); qc.invalidateQueries({ queryKey: ['carbon-kpis'] }); setDeleteTarget(null) },
+    mutationFn: (id: string) => apiDelete(`/api/carbon/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['carbon'] })
+      qc.invalidateQueries({ queryKey: ['carbon-kpis'] })
+      toast({ title: 'Transaction deleted' })
+      setDeleteTarget(null)
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Delete failed', description: e.message, variant: 'error' }),
   })
 
   const openCreate = () => { setSelected(null); reset({ sourceModule: 'Manual', product: '', quantity: 1, emissionFactorId: factors[0]?.id ?? '', departmentId: departments[0]?.id ?? '', date: new Date().toISOString().split('T')[0] }); setLivePreview(null); setDrawerOpen(true) }
@@ -139,6 +168,8 @@ export default function CarbonTransactionsPage() {
   const closeDrawer = () => { setDrawerOpen(false); setSelected(null); setLivePreview(null) }
 
   const nextAction = selected ? STATUS_NEXT[selected.status] : null
+  const formDisabled = !!selected && !canManage // viewing an existing record you cannot edit
+  const canSave = selected ? canManage : canCreate
 
   return (
     <div className="min-h-full animate-es-fade">
@@ -148,9 +179,11 @@ export default function CarbonTransactionsPage() {
           <h1 className="text-[20px] font-semibold text-ink">Carbon Transactions</h1>
           <p className="text-[12.5px] text-faint">{isLoading ? '…' : `${transactions.length} records`} · Track emissions across all departments</p>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 h-[34px] px-4 rounded-[7px] bg-brand-primary text-white text-[12.5px] font-semibold hover:bg-brand-primary-dark transition-colors">
-          <Plus className="w-4 h-4" />Log Carbon Data
-        </button>
+        {canCreate && (
+          <button onClick={openCreate} className="inline-flex items-center gap-2 h-[34px] px-4 rounded-[7px] bg-brand-primary text-white text-[12.5px] font-semibold hover:bg-brand-primary-dark transition-colors">
+            <Plus className="w-4 h-4" />Log Carbon Data
+          </button>
+        )}
       </div>
 
       {/* KPI strip */}
@@ -196,7 +229,7 @@ export default function CarbonTransactionsPage() {
                   </div>
                   <p className="text-sm font-medium text-ink-2">No carbon transactions yet</p>
                   <p className="text-xs text-faint">Log your first record manually or import from fleet and energy systems.</p>
-                  <button onClick={openCreate} className="mt-1 px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-[7px] hover:bg-brand-primary-dark transition-colors">+ Log Carbon Data</button>
+                  {canCreate && <button onClick={openCreate} className="mt-1 px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-[7px] hover:bg-brand-primary-dark transition-colors">+ Log Carbon Data</button>}
                 </div>
               </td></tr>
             ) : filtered.map(tx => (
@@ -210,9 +243,11 @@ export default function CarbonTransactionsPage() {
                 <td className="px-[18px] py-3.5 text-ink-2 text-xs tabular-nums">{new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                 <td className="px-[18px] py-3.5"><StatusPill status={tx.status} /></td>
                 <td className="px-[18px] py-3.5">
-                  <button onClick={e => { e.stopPropagation(); setDeleteTarget(tx) }} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canManage && (
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(tx) }} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -241,6 +276,7 @@ export default function CarbonTransactionsPage() {
               {selected && STATUS_STEPS.includes(selected.status) && <StepIndicator status={selected.status} />}
 
               <form className="space-y-5">
+                <fieldset disabled={formDisabled} className="space-y-5 m-0 min-w-0 border-0 p-0">
                 <div className="space-y-1.5">
                   <label className="text-[12px] font-semibold text-ink">Source Module <span className="text-pill-red-fg">*</span></label>
                   <select {...register('sourceModule')} className="w-full px-3 py-2 text-[13.5px] border border-input-line rounded-lg outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 bg-surface text-ink transition">
@@ -298,7 +334,7 @@ export default function CarbonTransactionsPage() {
                 </div>
 
                 {/* Status action */}
-                {selected && nextAction && (
+                {selected && nextAction && canManage && (
                   <div className="pt-2 border-t border-line-soft">
                     <p className="text-[11px] font-semibold text-faint uppercase tracking-[0.06em] mb-3">Actions</p>
                     <button
@@ -312,14 +348,17 @@ export default function CarbonTransactionsPage() {
                     </button>
                   </div>
                 )}
+                </fieldset>
               </form>
             </div>
 
             <div className="px-6 py-4 border-t border-line-soft flex items-center justify-end gap-3">
-              <button type="button" onClick={closeDrawer} className="px-4 py-2 text-sm font-semibold text-ink border border-line rounded-[7px] hover:bg-hover transition-colors">Discard</button>
-              <button onClick={handleSubmit(v => saveMutation.mutate(v))} disabled={saveMutation.isPending} className="px-5 py-2 text-sm font-semibold text-white bg-brand-primary rounded-[7px] hover:bg-brand-primary-dark disabled:opacity-60 transition-colors">
-                {saveMutation.isPending ? 'Saving…' : 'Save'}
-              </button>
+              <button type="button" onClick={closeDrawer} className="px-4 py-2 text-sm font-semibold text-ink border border-line rounded-[7px] hover:bg-hover transition-colors">{canSave ? 'Discard' : 'Close'}</button>
+              {canSave && (
+                <button onClick={handleSubmit(v => saveMutation.mutate(v))} disabled={saveMutation.isPending} className="px-5 py-2 text-sm font-semibold text-white bg-brand-primary rounded-[7px] hover:bg-brand-primary-dark disabled:opacity-60 transition-colors">
+                  {saveMutation.isPending ? 'Saving…' : 'Save'}
+                </button>
+              )}
             </div>
           </div>
         </div>

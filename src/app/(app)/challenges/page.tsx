@@ -3,12 +3,17 @@ import { KanbanBoard } from "./kanban-board";
 import { db } from "@/db";
 import { categories, badges } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { auth } from "@/auth";
 
 export const metadata = {
   title: "Challenges Kanban | EcoSphere",
 };
 
 export default async function ChallengesPage() {
+  const session = await auth();
+  const role = (session?.user as any)?.role ?? "EMPLOYEE";
+  const canManage = role === "ADMIN" || role === "HR_MANAGER"; // challenge.create/update
+
   const [challengeRows, categoryRows, badgeRows] = await Promise.all([
     fetchChallengesData(),
     db.select().from(categories).where(eq(categories.type, "CHALLENGE")),
@@ -25,10 +30,11 @@ export default async function ChallengesPage() {
       </header>
       
       <main className="flex-1 overflow-x-auto p-8">
-        <KanbanBoard 
-          initialChallenges={challengeRows} 
+        <KanbanBoard
+          initialChallenges={challengeRows}
           categories={categoryRows}
           badges={badgeRows}
+          canManage={canManage}
         />
       </main>
     </div>

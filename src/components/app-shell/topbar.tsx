@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Session } from 'next-auth'
 import { signOut } from 'next-auth/react'
@@ -184,8 +185,12 @@ export function Topbar({ session, onMenuClick }: TopbarProps) {
 
           <ThemeToggle />
 
-          {/* User menu */}
-          <div className="flex h-[34px] items-center gap-[9px] rounded-full border border-line bg-surface pl-[5px] pr-3">
+          {/* User menu → Profile */}
+          <Link
+            href="/profile"
+            title="View your profile"
+            className="flex h-[34px] items-center gap-[9px] rounded-full border border-line bg-surface pl-[5px] pr-3 transition-colors hover:border-brand-primary/40 hover:bg-hover"
+          >
             <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-brand-primary text-[10.5px] font-bold text-white">
               {initials}
             </div>
@@ -195,7 +200,7 @@ export function Topbar({ session, onMenuClick }: TopbarProps) {
                 {xp.toLocaleString()} XP
               </span>
             </div>
-          </div>
+          </Link>
           <button
             onClick={() => signOut({ callbackUrl: '/sign-in' })}
             className="flex h-[34px] w-[34px] items-center justify-center rounded-[7px] border border-line bg-surface text-ink-2 transition-colors hover:bg-pill-red-bg hover:text-pill-red-fg"

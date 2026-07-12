@@ -21,7 +21,7 @@ export async function listProductProfiles() {
     })
     .from(productEsgProfiles)
     .leftJoin(emissionFactors, eq(productEsgProfiles.emissionFactorId, emissionFactors.id))
-    .orderBy(desc(productEsgProfiles.product))
+    .orderBy(desc(productEsgProfiles.createdAt))
 }
 
 export async function getProductProfileById(id: string) {
