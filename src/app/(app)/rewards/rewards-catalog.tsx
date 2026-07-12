@@ -5,16 +5,14 @@ import { Button } from "@/components/ui/button";
 import { RecordDrawer } from "@/components/shared/record-drawer";
 import { checkoutReward, createRewardItem, updateRewardStock } from "./actions";
 
-export function RewardsCatalog({ 
-  initialRewards, 
+export function RewardsCatalog({
+  initialRewards,
   walletBalance,
-  userId,
-  isAdmin 
-}: { 
-  initialRewards: any[], 
+  isAdmin
+}: {
+  initialRewards: any[],
   walletBalance: number,
-  userId: string,
-  isAdmin: boolean 
+  isAdmin: boolean
 }) {
   const [rewards, setRewards] = useState(initialRewards);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -73,7 +71,7 @@ export function RewardsCatalog({
     
     setProcessingId(rewardId);
     try {
-      const res = await checkoutReward(userId, rewardId);
+      const res = await checkoutReward(rewardId);
       if (!res.success) {
         alert("Checkout failed: " + res.error);
       } else {

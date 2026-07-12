@@ -4,6 +4,10 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { Plus, Trash2, Search, X, CheckCircle2, XCircle } from 'lucide-react'
+import { useToast } from '@/components/shared/toast'
+import { useCurrentUser } from '@/lib/hooks'
+import { can } from '@/lib/roles'
+import { apiPost, apiPatch, apiDelete, ApiError } from '@/lib/api'
 
 type EmissionFactor = { id: string; name: string; unit: string; status: string }
 type ProductProfile = {
@@ -45,6 +49,9 @@ function CarbonCategoryPill({ cat }: { cat: string | null }) {
 
 export default function ProductProfilesPage() {
   const qc = useQueryClient()
+  const { toast } = useToast()
+  const { role } = useCurrentUser()
+  const canManage = can.manageProductProfile(role)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<ProductProfile | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ProductProfile | null>(null)
@@ -70,17 +77,30 @@ export default function ProductProfilesPage() {
   })
 
   const saveMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: (values: FormValues) => {
       const payload = { ...values, emissionFactorId: values.emissionFactorId || null, carbonCategory: values.carbonCategory || null, greenAlternative: values.greenAlternative || null, recyclable: Boolean(values.recyclable), hazardous: Boolean(values.hazardous) }
-      const url = selected ? `/api/product-profiles/${selected.id}` : '/api/product-profiles'
-      return fetch(url, { method: selected ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json())
+      return selected
+        ? apiPatch(`/api/product-profiles/${selected.id}`, payload)
+        : apiPost('/api/product-profiles', payload)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['product-profiles'] }); closeDrawer() },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['product-profiles'] })
+      toast({ title: selected ? 'Profile updated' : 'Profile created' })
+      closeDrawer()
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Save failed', description: e.message, variant: 'error' }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => fetch(`/api/product-profiles/${id}`, { method: 'DELETE' }).then(r => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['product-profiles'] }); setDeleteTarget(null) },
+    mutationFn: (id: string) => apiDelete(`/api/product-profiles/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['product-profiles'] })
+      toast({ title: 'Profile deleted' })
+      setDeleteTarget(null)
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Delete failed', description: e.message, variant: 'error' }),
   })
 
   const openCreate = () => { setSelected(null); reset({ product: '', emissionFactorId: '', carbonCategory: '', greenAlternative: '', recyclable: false, hazardous: false }); setDrawerOpen(true) }
@@ -98,9 +118,11 @@ export default function ProductProfilesPage() {
           <h1 className="text-2xl font-semibold text-ink">Product ESG Profiles</h1>
           <p className="text-sm text-ink-2 mt-0.5">{isLoading ? '…' : `${profiles.length} profiles`} · Recyclability, hazard status and emission factors per product</p>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-dark transition-colors">
-          <Plus className="w-4 h-4" />New Profile
-        </button>
+        {canManage && (
+          <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-dark transition-colors">
+            <Plus className="w-4 h-4" />New Profile
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-3 mb-4">
@@ -135,7 +157,7 @@ export default function ProductProfilesPage() {
                 </div>
               </td></tr>
             ) : filtered.map(p => (
-              <tr key={p.id} onClick={() => openEdit(p)} className="hover:bg-accent-soft cursor-pointer transition-colors group">
+              <tr key={p.id} onClick={() => canManage && openEdit(p)} className={`hover:bg-accent-soft transition-colors group ${canManage ? 'cursor-pointer' : ''}`}>
                 <td className="px-5 py-3.5 font-medium text-ink">{p.product}</td>
                 <td className="px-5 py-3.5 text-ink-2 text-xs">{p.emissionFactorName ?? <span className="text-faint">—</span>}</td>
                 <td className="px-5 py-3.5"><CarbonCategoryPill cat={p.carbonCategory} /></td>
@@ -143,9 +165,11 @@ export default function ProductProfilesPage() {
                 <td className="px-5 py-3.5 text-center"><BoolIcon value={p.hazardous} /></td>
                 <td className="px-5 py-3.5 text-ink-2 text-xs">{p.greenAlternative ?? <span className="text-faint">—</span>}</td>
                 <td className="px-5 py-3.5">
-                  <button onClick={e => { e.stopPropagation(); setDeleteTarget(p) }} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canManage && (
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(p) }} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

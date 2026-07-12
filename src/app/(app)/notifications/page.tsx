@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Toggle } from '../esg-config/page'
+import { useToast } from '@/components/shared/toast'
 
 interface NotificationRow {
   id: string
@@ -46,6 +47,7 @@ export default function NotificationsPage() {
   const { data: session } = useSession()
   const isAdmin = (session?.user as any)?.role === 'ADMIN'
   const qc = useQueryClient()
+  const { toast } = useToast()
 
   const { data: feed } = useQuery({ queryKey: ['notifications'], queryFn: getFeed })
   const { data: settings } = useQuery({ queryKey: ['notif-settings'], queryFn: getConfig })
@@ -63,7 +65,10 @@ export default function NotificationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(next),
       })
-      if (!res.ok) throw new Error('Save failed')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || 'Save failed')
+      }
       return res.json()
     },
     onSuccess: () => {
@@ -72,16 +77,29 @@ export default function NotificationsPage() {
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     },
+    onError: (e: Error) => toast({ title: 'Save failed', description: e.message, variant: 'error' }),
   })
 
   const markRead = useMutation({
     mutationFn: async (id: string) => {
-      await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' })
+      const res = await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' })
+      if (!res.ok) throw new Error('Could not mark as read')
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onError: (e: Error) => toast({ title: 'Action failed', description: e.message, variant: 'error' }),
   })
 
   const items = feed?.notifications ?? []
+  const unreadItems = items.filter((n) => !n.read)
+
+  const markAllRead = useMutation({
+    mutationFn: async () => {
+      await Promise.all(
+        unreadItems.map((n) => fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' })),
+      )
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  })
 
   return (
     <div className="max-w-2xl">
@@ -131,7 +149,18 @@ export default function NotificationsPage() {
 
       {/* Notification feed */}
       <section className="bg-surface p-6 rounded-lg border border-line">
-        <h2 className="text-lg font-semibold text-ink mb-2">Your Notifications</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-ink">Your Notifications</h2>
+          {unreadItems.length > 0 && (
+            <button
+              onClick={() => markAllRead.mutate()}
+              disabled={markAllRead.isPending}
+              className="text-xs font-semibold text-brand-primary hover:underline disabled:opacity-50"
+            >
+              {markAllRead.isPending ? 'Marking…' : `Mark all read (${unreadItems.length})`}
+            </button>
+          )}
+        </div>
         {items.length === 0 ? (
           <p className="text-sm text-ink-2 py-4">No notifications yet.</p>
         ) : (

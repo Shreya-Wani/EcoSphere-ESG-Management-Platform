@@ -16,6 +16,37 @@ Most organizations track ESG in scattered spreadsheets: carbon in one file, CSR 
 - **Governance & compliance** — policies with acknowledgements, audits with owner-assigned, due-dated compliance issues (overdue flagging).
 - **4 standard reports** — Environmental, Social, Governance, ESG Summary.
 
+## Platform-wide fixes & improvements
+
+A full-platform hardening pass addressed correctness, access control, and UX across every module.
+
+### Cross-cutting
+
+- **Role-based access, end to end** — the server permission matrix (`src/server/permissions.ts`) and the client affordance helpers (`src/lib/roles.ts`) were realigned to the DB role enum so every create/edit/delete/approve action is gated consistently in both the API and the UI. Viewers without rights get read-only detail views instead of dead buttons.
+- **Edit works everywhere** — fixed the Next.js 15 async `params` regression in dynamic API routes (`await ctx.params`), which had been silently breaking edit **and** delete on every `[id]` route.
+- **Delete works everywhere** — `delete` permissions were aligned to each entity's `update` role set, resolving spurious 403s.
+- **New records appear first** — added `createdAt` timestamps to the 8 tables that lacked a time column, and every list now orders newest-first.
+- **Image proof — upload & view** — a refreshed proof control lets users attach an image (stored as a data URL) and view it in-place; wired into the challenge flow and other applicable modules.
+- **No more silent failures** — mutations now go through `apiFetch`, which throws on non-2xx so errors surface as toasts instead of vanishing.
+
+### Module-specific
+
+| Area | Fix |
+|------|-----|
+| Carbon Transactions | New entries now appear in the list immediately |
+| Product ESG Profiles | Category selection updates linked data correctly |
+| CSR Activities | "Could not join" (403) fixed — self-service join opened to all roles |
+| ESG Policies | "Could not acknowledge" (403) fixed — acknowledgement opened to all roles |
+| Audits & Compliance Issues | Rows are clickable; non-managers get a read-only detail view |
+| Categories | Edit / save fixed |
+| ESG Configuration | Pillar weights save and trigger a live score recalculation |
+| Notifications | Mark-as-read, mark-all-read, and error toasts |
+| Profile | New profile page, reachable from the top-bar avatar |
+| Challenge emails | "View challenges" CTA now resolves to the correct absolute URL |
+| Environmental & ESG Summary reports | **This month / This quarter / FY26** filters now drive the charts **and** values (demo carbon data is seeded with dates spread across FY26) |
+
+> **Upgrading an existing database:** because this pass added `createdAt` columns, re-run `npm run db:push` (additive, safe) followed by `npm run db:seed` after pulling these changes.
+
 ## Tech stack
 
 | Layer | Technology |

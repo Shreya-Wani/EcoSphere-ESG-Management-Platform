@@ -4,6 +4,10 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { Plus, Trash2, Search, X } from 'lucide-react'
+import { useToast } from '@/components/shared/toast'
+import { useCurrentUser } from '@/lib/hooks'
+import { can } from '@/lib/roles'
+import { apiPost, apiPatch, apiDelete, ApiError } from '@/lib/api'
 
 // ---------- Types ----------
 type Department = { id: string; name: string }
@@ -60,6 +64,9 @@ function ProgressBar({ current, target }: { current: number; target: number }) {
 
 export default function EnvironmentalGoalsPage() {
   const qc = useQueryClient()
+  const { toast } = useToast()
+  const { role } = useCurrentUser()
+  const canManage = can.manageGoal(role)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<Goal | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Goal | null>(null)
@@ -85,17 +92,28 @@ export default function EnvironmentalGoalsPage() {
   })
 
   const saveMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: (values: FormValues) => {
       const payload = { ...values, targetCo2: Number(values.targetCo2), deadline: values.deadline || null }
-      const url = selected ? `/api/goals/${selected.id}` : '/api/goals'
-      return fetch(url, { method: selected ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json())
+      return selected ? apiPatch(`/api/goals/${selected.id}`, payload) : apiPost('/api/goals', payload)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['goals'] }); closeDrawer() },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      toast({ title: selected ? 'Goal updated' : 'Goal created' })
+      closeDrawer()
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Save failed', description: e.message, variant: 'error' }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => fetch(`/api/goals/${id}`, { method: 'DELETE' }).then(r => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['goals'] }); setDeleteTarget(null) },
+    mutationFn: (id: string) => apiDelete(`/api/goals/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      toast({ title: 'Goal deleted' })
+      setDeleteTarget(null)
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Delete failed', description: e.message, variant: 'error' }),
   })
 
   const openCreate = () => { setSelected(null); reset({ name: '', departmentId: departments[0]?.id ?? '', targetCo2: 0, deadline: '', status: 'ACTIVE' }); setDrawerOpen(true) }
@@ -113,9 +131,11 @@ export default function EnvironmentalGoalsPage() {
           <h1 className="text-2xl font-semibold text-ink">Environmental Goals</h1>
           <p className="text-sm text-ink-2 mt-0.5">{isLoading ? '…' : `${goals.length} goals`} · Set and track CO₂ reduction targets</p>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-dark transition-colors">
-          <Plus className="w-4 h-4" />New Goal
-        </button>
+        {canManage && (
+          <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-dark transition-colors">
+            <Plus className="w-4 h-4" />New Goal
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-3 mb-4">
@@ -151,7 +171,7 @@ export default function EnvironmentalGoalsPage() {
                 </div>
               </td></tr>
             ) : filtered.map(g => (
-              <tr key={g.id} onClick={() => openEdit(g)} className="hover:bg-accent-soft cursor-pointer transition-colors group">
+              <tr key={g.id} onClick={() => canManage && openEdit(g)} className={`hover:bg-accent-soft transition-colors group ${canManage ? 'cursor-pointer' : ''}`}>
                 <td className="px-5 py-3.5 font-medium text-ink">{g.name}</td>
                 <td className="px-5 py-3.5 text-ink-2">{g.departmentName ?? <span className="text-faint">—</span>}</td>
                 <td className="px-5 py-3.5 text-right font-mono text-ink">{Number(g.targetCo2).toFixed(1)}</td>
@@ -160,9 +180,11 @@ export default function EnvironmentalGoalsPage() {
                 <td className="px-5 py-3.5 text-ink-2 text-xs">{g.deadline ? new Date(g.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : <span className="text-faint">—</span>}</td>
                 <td className="px-5 py-3.5"><StatusBadge status={g.status} /></td>
                 <td className="px-5 py-3.5">
-                  <button onClick={e => { e.stopPropagation(); setDeleteTarget(g) }} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canManage && (
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(g) }} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

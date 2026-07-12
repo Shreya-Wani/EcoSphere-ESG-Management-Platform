@@ -4,6 +4,10 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { Plus, Trash2, Search, X } from 'lucide-react'
+import { useToast } from '@/components/shared/toast'
+import { useCurrentUser } from '@/lib/hooks'
+import { can } from '@/lib/roles'
+import { apiPost, apiPatch, apiDelete, ApiError } from '@/lib/api'
 
 type Category = {
   id: string
@@ -31,6 +35,9 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function CategoriesPage() {
   const qc = useQueryClient()
+  const { toast } = useToast()
+  const { role } = useCurrentUser()
+  const canManage = can.manageCategory(role)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<Category | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
@@ -51,16 +58,28 @@ export default function CategoriesPage() {
   })
 
   const saveMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
-      const url = selected ? `/api/categories/${selected.id}` : '/api/categories'
-      return fetch(url, { method: selected ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) }).then(r => r.json())
+    mutationFn: (values: FormValues) =>
+      selected ? apiPatch(`/api/categories/${selected.id}`, values) : apiPost('/api/categories', values),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['categories'] })
+      qc.invalidateQueries({ queryKey: ['options'] })
+      toast({ title: selected ? 'Category updated' : 'Category created' })
+      closeDrawer()
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['categories'] }); closeDrawer() },
+    onError: (e: ApiError) =>
+      toast({ title: 'Save failed', description: e.message, variant: 'error' }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => fetch(`/api/categories/${id}`, { method: 'DELETE' }).then(r => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['categories'] }); setDeleteTarget(null) },
+    mutationFn: (id: string) => apiDelete(`/api/categories/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['categories'] })
+      qc.invalidateQueries({ queryKey: ['options'] })
+      toast({ title: 'Category deleted' })
+      setDeleteTarget(null)
+    },
+    onError: (e: ApiError) =>
+      toast({ title: 'Delete failed', description: e.message, variant: 'error' }),
   })
 
   const openCreate = () => { setSelected(null); reset({ name: '', type: 'CSR_ACTIVITY', status: 'ACTIVE' }); setDrawerOpen(true) }
@@ -74,9 +93,11 @@ export default function CategoriesPage() {
           <h1 className="text-2xl font-semibold text-ink">Categories</h1>
           <p className="text-sm text-ink-2 mt-0.5">{isLoading ? '…' : `${categories.length} categories`} · CSR Activity and Challenge taxonomy</p>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-dark transition-colors">
-          <Plus className="w-4 h-4" />New Category
-        </button>
+        {canManage && (
+          <button onClick={openCreate} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary-dark transition-colors">
+            <Plus className="w-4 h-4" />New Category
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-3 mb-4">
@@ -108,15 +129,17 @@ export default function CategoriesPage() {
                 </div>
               </td></tr>
             ) : filtered.map(cat => (
-              <tr key={cat.id} onClick={() => openEdit(cat)} className="hover:bg-accent-soft cursor-pointer transition-colors group">
+              <tr key={cat.id} onClick={() => canManage && openEdit(cat)} className={`hover:bg-accent-soft transition-colors group ${canManage ? 'cursor-pointer' : ''}`}>
                 <td className="px-5 py-3.5 font-medium text-ink">{cat.name}</td>
                 <td className="px-5 py-3.5"><TypePill type={cat.type} /></td>
                 <td className="px-5 py-3.5"><StatusBadge status={cat.status} /></td>
                 <td className="px-5 py-3.5">
-                  <button onClick={e => { e.stopPropagation(); setDeleteTarget(cat) }}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canManage && (
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(cat) }}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-pill-red-bg text-faint hover:text-pill-red-fg transition-all">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

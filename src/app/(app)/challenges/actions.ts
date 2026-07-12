@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { challenges, categories, badges } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { requireActionRole } from "@/server/action-guards";
+import { isForeignKeyViolation, foreignKeyMessage } from "@/server/db-errors";
 
 // Map difficulty to XP Reward as defined in the schema business rules
 const difficultyXpMap: Record<string, number> = {
@@ -35,6 +37,7 @@ export async function fetchChallengesData() {
 }
 
 export async function createChallenge(formData: FormData) {
+  await requireActionRole("ADMIN", "HR_MANAGER"); // challenge.create
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const categoryId = formData.get("categoryId") as string;
@@ -68,18 +71,27 @@ export async function createChallenge(formData: FormData) {
 }
 
 export async function updateChallengeStatus(id: string, newStatus: any) {
+  await requireActionRole("ADMIN", "HR_MANAGER"); // challenge.update
   await db.update(challenges).set({ status: newStatus }).where(eq(challenges.id, id));
   revalidatePath("/challenges");
 }
 
 export async function deleteChallenge(id: string) {
+  await requireActionRole("ADMIN", "HR_MANAGER"); // challenge.delete
   // Guard: Only DRAFT challenges can be deleted
   const [challenge] = await db.select({ status: challenges.status }).from(challenges).where(eq(challenges.id, id));
   
-  if (challenge && challenge.status === "DRAFT") {
-    await db.delete(challenges).where(eq(challenges.id, id));
-    revalidatePath("/challenges");
-  } else {
-    throw new Error("Only DRAFT challenges can be deleted");
+  if (!challenge) return; // already gone — treat as success
+  if (challenge.status !== "DRAFT") {
+    throw new Error("Only DRAFT challenges can be deleted.");
   }
+
+  try {
+    await db.delete(challenges).where(eq(challenges.id, id));
+  } catch (e) {
+    // e.g. participants already joined this challenge — block with a clear reason.
+    if (isForeignKeyViolation(e)) throw new Error(foreignKeyMessage(e));
+    throw e;
+  }
+  revalidatePath("/challenges");
 }

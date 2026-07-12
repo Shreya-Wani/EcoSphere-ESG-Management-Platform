@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   ResponsiveContainer,
@@ -10,16 +10,30 @@ import {
   YAxis,
   Tooltip,
   Legend,
+  Cell,
   CartesianGrid,
 } from 'recharts'
 import { PageHeader } from '@/components/shared/page-header'
 import { KpiTile } from '@/components/shared/kpi-tile'
 import { ChartCard } from '@/components/shared/chart-card'
 import { DataTable, type Column } from '@/components/shared/data-table'
-import { ReportChrome, type TimeRange } from '@/components/shared/report-chrome'
+import { ReportChrome, rangeStart, type TimeRange } from '@/components/shared/report-chrome'
 import { apiGet } from '@/lib/api'
 import { downloadCsv } from '@/lib/csv'
 import type { Scoreboard, DeptScoreRow } from '@/server/services/score/read'
+
+type CarbonTx = {
+  id: string
+  calculatedCo2: number
+  departmentName: string | null
+  date: string
+}
+
+const RANGE_LABEL: Record<TimeRange, string> = {
+  month: 'This month',
+  quarter: 'This quarter',
+  fy: 'FY26',
+}
 
 export default function EsgSummaryReportPage() {
   const [range, setRange] = useState<TimeRange>('month')
@@ -27,6 +41,10 @@ export default function EsgSummaryReportPage() {
   const { data, isLoading } = useQuery<Scoreboard>({
     queryKey: ['scoreboard'],
     queryFn: () => apiGet<Scoreboard>('/api/scoreboard'),
+  })
+  const { data: txns = [] } = useQuery<CarbonTx[]>({
+    queryKey: ['carbon'],
+    queryFn: () => apiGet<CarbonTx[]>('/api/carbon'),
   })
 
   const chart =
@@ -36,6 +54,26 @@ export default function EsgSummaryReportPage() {
       Social: Math.round(d.social),
       Governance: Math.round(d.governance),
     })) ?? []
+
+  // Range-scoped carbon activity — the only time-dependent data in the summary
+  // (pillar scores are a point-in-time snapshot for the reporting period).
+  const filtered = useMemo(() => {
+    const start = rangeStart(range).getTime()
+    return txns.filter((t) => new Date(t.date).getTime() >= start)
+  }, [txns, range])
+
+  const co2InRange = Math.round(filtered.reduce((a, t) => a + Number(t.calculatedCo2 || 0), 0))
+
+  const co2ByDept = useMemo(() => {
+    const byDept = new Map<string, number>()
+    for (const t of filtered) {
+      const key = t.departmentName ?? 'Unassigned'
+      byDept.set(key, (byDept.get(key) ?? 0) + Number(t.calculatedCo2 || 0))
+    }
+    return Array.from(byDept, ([name, co2]) => ({ name, co2: Math.round(co2) })).sort(
+      (a, b) => b.co2 - a.co2,
+    )
+  }, [filtered])
 
   const exportCsv = () =>
     downloadCsv(
@@ -78,14 +116,19 @@ export default function EsgSummaryReportPage() {
       />
       <ReportChrome range={range} onRange={setRange} onExport={exportCsv} />
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-2 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiTile label="Overall ESG" value={Math.round(data?.overall.total ?? 0)} />
         <KpiTile label="Environmental" value={Math.round(data?.overall.environmental ?? 0)} />
         <KpiTile label="Social" value={Math.round(data?.overall.social ?? 0)} />
         <KpiTile label="Governance" value={Math.round(data?.overall.governance ?? 0)} />
       </div>
+      <p className="mb-6 text-sm text-ink-2">
+        <span className="font-medium text-ink">{RANGE_LABEL[range]}:</span> {filtered.length}{' '}
+        carbon {filtered.length === 1 ? 'transaction' : 'transactions'} ·{' '}
+        {co2InRange.toLocaleString()} kg CO₂e recorded
+      </p>
 
-      <div className="mb-6">
+      <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <ChartCard title="ESG Pillars by Department">
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={chart} margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
@@ -97,6 +140,22 @@ export default function EsgSummaryReportPage() {
               <Bar dataKey="Environmental" fill="#8fb89a" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Social" fill="#4f7a5a" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Governance" fill="#33503c" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title={`CO₂e by Department · ${RANGE_LABEL[range]}`}>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={co2ByDept} margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="var(--muted)" />
+              <YAxis tick={{ fontSize: 12 }} stroke="var(--muted)" />
+              <Tooltip cursor={{ fill: 'rgba(79,122,90,0.08)' }} />
+              <Bar dataKey="co2" radius={[6, 6, 0, 0]}>
+                {co2ByDept.map((_, i) => (
+                  <Cell key={i} fill="#8fb89a" />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>

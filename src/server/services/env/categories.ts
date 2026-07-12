@@ -8,7 +8,7 @@ import { eq, desc } from 'drizzle-orm'
 import type { CategoryInput } from '@/server/validators/env'
 
 export async function listCategories() {
-  return db.select().from(categories).orderBy(desc(categories.name))
+  return db.select().from(categories).orderBy(desc(categories.createdAt))
 }
 
 export async function getCategoryById(id: string) {

@@ -4,12 +4,14 @@ import { db } from "@/db";
 import { badges } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { requireActionRole } from "@/server/action-guards";
 
 export async function fetchBadges() {
-  return await db.select().from(badges);
+  return await db.select().from(badges).orderBy(desc(badges.createdAt));
 }
 
 export async function createBadge(formData: FormData) {
+  await requireActionRole("ADMIN"); // badge.create — ADMIN only
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
   const icon = formData.get("icon") as string;

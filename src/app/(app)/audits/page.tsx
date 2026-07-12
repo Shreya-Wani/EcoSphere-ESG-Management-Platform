@@ -61,7 +61,6 @@ export default function AuditsPage() {
     setDrawerOpen(true)
   }
   const openEdit = (a: AuditView) => {
-    if (!canManage) return
     setForm({
       id: a.id,
       title: a.title,
@@ -164,10 +163,11 @@ export default function AuditsPage() {
       <RecordDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        title={form.id ? 'Edit Audit' : 'New Audit'}
+        title={form.id ? (canManage ? 'Edit Audit' : 'Audit details') : 'New Audit'}
         onSave={save}
         onDiscard={() => setDrawerOpen(false)}
         loading={saving}
+        readOnly={!!form.id && !canManage}
       >
         <div className="space-y-4">
           <FormField label="Title" required>

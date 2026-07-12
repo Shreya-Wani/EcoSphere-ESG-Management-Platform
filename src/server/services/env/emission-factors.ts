@@ -11,7 +11,7 @@ export async function listEmissionFactors() {
   return db
     .select()
     .from(emissionFactors)
-    .orderBy(desc(emissionFactors.name))
+    .orderBy(desc(emissionFactors.createdAt))
 }
 
 export async function getEmissionFactorById(id: string) {

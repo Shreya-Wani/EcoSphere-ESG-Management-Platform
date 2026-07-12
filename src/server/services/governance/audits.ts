@@ -33,7 +33,7 @@ export async function listAudits(): Promise<AuditView[]> {
     .from(audits)
     .leftJoin(departments, eq(audits.departmentId, departments.id))
     .leftJoin(users, eq(audits.auditorId, users.id))
-    .orderBy(desc(audits.date))
+    .orderBy(desc(audits.createdAt))
 
   const counts = await db
     .select({ auditId: complianceIssues.auditId, c: count() })

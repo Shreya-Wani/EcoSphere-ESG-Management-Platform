@@ -8,7 +8,23 @@
 
 const BRAND = '#4F7A5A'
 const DEEP = '#33503C'
-const APP_URL = process.env.APP_URL || 'http://localhost:3000'
+
+/**
+ * Public base URL used for every email CTA link. Resolved from the deployment
+ * environment so links point at the real host instead of localhost:
+ * APP_URL → NEXTAUTH_URL/AUTH_URL → Vercel host → localhost fallback.
+ */
+function resolveAppUrl(): string {
+  const raw =
+    process.env.APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.AUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+    'http://localhost:3000'
+  return raw.replace(/\/+$/, '')
+}
+
+const APP_URL = resolveAppUrl()
 
 interface Block {
   heading: string

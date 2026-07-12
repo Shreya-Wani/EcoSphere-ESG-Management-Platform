@@ -37,7 +37,7 @@ export async function listPolicies(currentUserId?: string): Promise<PolicyView[]
     })
     .from(esgPolicies)
     .leftJoin(departments, eq(esgPolicies.departmentId, departments.id))
-    .orderBy(desc(esgPolicies.mandatory), esgPolicies.title)
+    .orderBy(desc(esgPolicies.mandatory), desc(esgPolicies.createdAt))
 
   const counts = await db
     .select({ policyId: policyAcknowledgements.policyId, c: count() })

@@ -10,11 +10,11 @@ export const metadata = {
 export default async function BadgesPage() {
   const session = await auth();
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect("/sign-in");
   }
 
   const userRole = (session.user as any).role || "EMPLOYEE";
-  const isAdmin = userRole === "HR_MANAGER" || userRole === "ESG_MANAGER" || userRole === "ADMIN";
+  const isAdmin = userRole === "ADMIN"; // badge management is ADMIN-only
   
   const badges = await fetchBadges();
 

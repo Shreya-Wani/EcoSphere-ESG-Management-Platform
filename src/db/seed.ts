@@ -151,16 +151,27 @@ async function main() {
   ])
 
   // ---------- CARBON TRANSACTIONS (CT-00001..) ----------
+  // seedNow / daysAgo are used here AND by later sections (participations,
+  // compliance). Dates are spread across FY26 so the Environmental / ESG
+  // Summary report time-range filters return distinct results: 3 rows this
+  // month, 3 more within the trailing quarter, 2 earlier in FY26.
+  const seedNow = new Date()
+  const fyYear = seedNow.getFullYear()
+  const daysAgo = (n: number) => {
+    const d = new Date(seedNow)
+    d.setDate(d.getDate() - n)
+    return d
+  }
   const ref = (n: number) => `CT-${String(n).padStart(5, '0')}`
   const carbonRows = [
-    { factor: diesel, qty: 320, dept: log, status: 'CONFIRMED' as const, module: 'Fleet' },
-    { factor: electricity, qty: 4200, dept: mfg, status: 'VALIDATED' as const, module: 'Expense' },
-    { factor: petrol, qty: 180, dept: log, status: 'DRAFT' as const, module: 'Fleet' },
-    { factor: paper, qty: 65, dept: cor, status: 'CONFIRMED' as const, module: 'Purchase' },
-    { factor: flight, qty: 1450, dept: cor, status: 'NEEDS_REVIEW' as const, module: 'Expense' },
-    { factor: steel, qty: 900, dept: mfg, status: 'VALIDATED' as const, module: 'Manufacturing' },
-    { factor: electricity, qty: 2100, dept: rnd, status: 'DRAFT' as const, module: 'Manual' },
-    { factor: diesel, qty: 75, dept: mfg, status: 'CONFIRMED' as const, module: 'Fleet' },
+    { factor: diesel, qty: 320, dept: log, status: 'CONFIRMED' as const, module: 'Fleet', date: daysAgo(2) },
+    { factor: electricity, qty: 4200, dept: mfg, status: 'VALIDATED' as const, module: 'Expense', date: daysAgo(6) },
+    { factor: petrol, qty: 180, dept: log, status: 'DRAFT' as const, module: 'Fleet', date: daysAgo(10) },
+    { factor: paper, qty: 65, dept: cor, status: 'CONFIRMED' as const, module: 'Purchase', date: daysAgo(40) },
+    { factor: flight, qty: 1450, dept: cor, status: 'NEEDS_REVIEW' as const, module: 'Expense', date: daysAgo(65) },
+    { factor: steel, qty: 900, dept: mfg, status: 'VALIDATED' as const, module: 'Manufacturing', date: daysAgo(85) },
+    { factor: electricity, qty: 2100, dept: rnd, status: 'DRAFT' as const, module: 'Manual', date: daysAgo(150) },
+    { factor: diesel, qty: 75, dept: mfg, status: 'CONFIRMED' as const, module: 'Fleet', date: daysAgo(185) },
   ]
   await db.insert(carbonTransactions).values(
     carbonRows.map((r, i) => ({
@@ -171,6 +182,7 @@ async function main() {
       emissionFactorId: r.factor.id,
       calculatedCo2: Math.round(r.qty * r.factor.co2PerUnit * 100) / 100,
       departmentId: r.dept.id,
+      date: r.date,
       status: r.status,
       createdById: esgMgr.id,
     })),
@@ -188,16 +200,9 @@ async function main() {
     .returning()
 
   // ---------- EMPLOYEE PARTICIPATIONS (mixed approval states) ----------
-  // Spread createdAt across the fiscal year so the report time-range
-  // filters (This month / This quarter / FY26) return distinct results:
-  // two rows land in the current month, three earlier in FY26.
-  const seedNow = new Date()
-  const fyYear = seedNow.getFullYear()
-  const daysAgo = (n: number) => {
-    const d = new Date(seedNow)
-    d.setDate(d.getDate() - n)
-    return d
-  }
+  // createdAt spread across FY26 (via seedNow / daysAgo defined above) so the
+  // report time-range filters return distinct results: two rows land in the
+  // current month, three earlier in FY26.
   const participationSeed = [
     { user: priya, activity: treePlant, status: 'APPROVED' as const, points: 100, createdAt: daysAgo(3) },
     { user: karan, activity: treePlant, status: 'APPROVED' as const, points: 100, createdAt: daysAgo(1) },
