@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RecordDrawer } from "@/components/shared/record-drawer";
-import { checkoutReward, createRewardItem } from "./actions";
+import { checkoutReward, createRewardItem, updateRewardStock } from "./actions";
 
 export function RewardsCatalog({ 
   initialRewards, 
@@ -20,8 +20,38 @@ export function RewardsCatalog({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [viewReward, setViewReward] = useState<any | null>(null);
+  const [stockEdit, setStockEdit] = useState<number>(0);
+  const [savingStock, setSavingStock] = useState(false);
 
   const displayRewards = isAdmin ? rewards : rewards.filter(r => r.status === "ACTIVE");
+
+  const rewardEmoji = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes("coffee")) return "☕";
+    if (n.includes("day")) return "🌴";
+    if (n.includes("merch") || n.includes("mug")) return "👕";
+    return "🎁";
+  };
+
+  function openView(reward: any) {
+    setViewReward(reward);
+    setStockEdit(reward.stock);
+  }
+
+  async function saveStock() {
+    if (!viewReward) return;
+    setSavingStock(true);
+    try {
+      await updateRewardStock(viewReward.id, Number(stockEdit));
+      setRewards(prev => prev.map(r => (r.id === viewReward.id ? { ...r, stock: Number(stockEdit) } : r)));
+      setViewReward(null);
+    } catch {
+      alert("Failed to update stock.");
+    } finally {
+      setSavingStock(false);
+    }
+  }
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -119,16 +149,24 @@ export function RewardsCatalog({
                   </div>
 
                   <div className="mt-4">
-                    <Button 
-                      className={`w-full font-medium ${isOutOfStock || cannotAfford ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#33503C] hover:bg-[#33503C]/90 text-white'}`}
-                      disabled={isOutOfStock || cannotAfford || isProcessing || isAdmin}
-                      onClick={() => handleRedeem(reward.id, reward.pointsRequired)}
-                    >
-                      {isProcessing ? "Processing..." : 
-                       isOutOfStock ? "Out of Stock" : 
-                       cannotAfford ? "Insufficient Points" : 
-                       isAdmin ? "Admin View" : "Redeem Now"}
-                    </Button>
+                    {isAdmin ? (
+                      <Button
+                        className="w-full font-medium bg-[#33503C] hover:bg-[#33503C]/90 text-white"
+                        onClick={() => openView(reward)}
+                      >
+                        View Details
+                      </Button>
+                    ) : (
+                      <Button
+                        className={`w-full font-medium ${isOutOfStock || cannotAfford ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-[#33503C] hover:bg-[#33503C]/90 text-white'}`}
+                        disabled={isOutOfStock || cannotAfford || isProcessing}
+                        onClick={() => handleRedeem(reward.id, reward.pointsRequired)}
+                      >
+                        {isProcessing ? "Processing..." :
+                         isOutOfStock ? "Out of Stock" :
+                         cannotAfford ? "Insufficient Points" : "Redeem Now"}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -171,6 +209,47 @@ export function RewardsCatalog({
           </form>
         </RecordDrawer>
       )}
+
+      <RecordDrawer
+        open={!!viewReward}
+        onOpenChange={(o) => !o && setViewReward(null)}
+        title="Reward Details"
+        loading={savingStock}
+        onSave={saveStock}
+        onDiscard={() => setViewReward(null)}
+      >
+        {viewReward && (
+          <div className="space-y-5">
+            <div className="h-40 bg-gray-100 rounded-xl flex items-center justify-center text-5xl">
+              {rewardEmoji(viewReward.name)}
+            </div>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xl font-semibold text-gray-900">{viewReward.name}</h3>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${viewReward.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                  {viewReward.status}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-gray-600">{viewReward.description || 'No description provided.'}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4">
+              <div className="text-xs font-medium text-gray-500 mb-1">Point Cost</div>
+              <div className="font-mono font-bold text-lg text-[#33503C]">{viewReward.pointsRequired} pts</div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+              <input
+                type="number"
+                min={0}
+                value={stockEdit}
+                onChange={(e) => setStockEdit(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded-md p-2 focus:ring-[#33503C] focus:border-[#33503C]"
+              />
+              <p className="text-xs text-gray-400 mt-1">Adjust stock and press Save to update the catalog.</p>
+            </div>
+          </div>
+        )}
+      </RecordDrawer>
     </div>
   );
 }

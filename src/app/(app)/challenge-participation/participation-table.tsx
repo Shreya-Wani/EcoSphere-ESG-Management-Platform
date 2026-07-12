@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ProofButton } from "@/components/shared/proof-viewer";
 import { handleApprove, handleReject } from "./actions";
 
 export function ParticipationTable({ data, isAdmin }: { data: any[], isAdmin: boolean }) {
@@ -55,9 +56,7 @@ export function ParticipationTable({ data, isAdmin }: { data: any[], isAdmin: bo
                 </td>
                 <td className="px-6 py-4">
                   {row.proofUrl ? (
-                    <a href={row.proofUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm font-medium">
-                      View Proof ↗
-                    </a>
+                    <ProofButton url={row.proofUrl} label="View Proof" />
                   ) : (
                     <span className="text-gray-400 text-sm">Not submitted</span>
                   )}

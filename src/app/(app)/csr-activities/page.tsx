@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, HandHeart, Pencil, Trash2, Paperclip } from 'lucide-react'
+import { Plus, HandHeart, Pencil, Trash2, Paperclip, Check } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { RecordDrawer } from '@/components/shared/record-drawer'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -16,6 +16,7 @@ import { useCurrentUser, useOptions } from '@/lib/hooks'
 import { can } from '@/lib/roles'
 import { apiGet, apiPost, apiPatch, apiDelete, ApiError } from '@/lib/api'
 import type { CsrActivityView } from '@/server/services/social/csr'
+import type { ParticipationView } from '@/server/services/social/participation'
 
 interface FormState {
   id?: string
@@ -38,7 +39,7 @@ const EMPTY: FormState = {
 }
 
 export default function CsrActivitiesPage() {
-  const { role } = useCurrentUser()
+  const { role, id: myId } = useCurrentUser()
   const { toast } = useToast()
   const qc = useQueryClient()
   const options = useOptions()
@@ -52,6 +53,17 @@ export default function CsrActivitiesPage() {
     queryKey: ['csr-activities'],
     queryFn: () => apiGet<CsrActivityView[]>('/api/csr-activities'),
   })
+
+  // The current user's participations drive the persisted "Joined" state:
+  // any activity they already joined shows "Joined" instead of a Join button.
+  const { data: participations = [] } = useQuery<ParticipationView[]>({
+    queryKey: ['participation'],
+    queryFn: () => apiGet<ParticipationView[]>('/api/participation'),
+  })
+  const joinedIds = useMemo(
+    () => new Set(participations.filter((p) => p.userId === myId).map((p) => p.activityId)),
+    [participations, myId],
+  )
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['csr-activities'] })
@@ -209,13 +221,19 @@ export default function CsrActivitiesPage() {
                       </button>
                     </>
                   )}
-                  <Button
-                    size="sm"
-                    disabled={joinMutation.isPending || a.status !== 'ACTIVE'}
-                    onClick={() => joinMutation.mutate(a.id)}
-                  >
-                    Join
-                  </Button>
+                  {joinedIds.has(a.id) ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-brand-primary/10 px-3 py-1.5 text-sm font-semibold text-brand-primary">
+                      <Check className="h-4 w-4" /> Joined
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={joinMutation.isPending || a.status !== 'ACTIVE'}
+                      onClick={() => joinMutation.mutate(a.id)}
+                    >
+                      Join
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

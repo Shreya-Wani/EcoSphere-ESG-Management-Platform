@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { ApprovalQueue, type ApprovalItem } from '@/components/shared/approval-queue'
+import { ProofButton, UploadProofButton } from '@/components/shared/proof-viewer'
 import { DataTable, type Column } from '@/components/shared/data-table'
 import { StatusPill } from '@/components/shared/status-pill'
 import { useToast } from '@/components/shared/toast'
@@ -15,7 +15,7 @@ import { formatDate } from '@/lib/utils'
 import type { ParticipationView } from '@/server/services/social/participation'
 
 export default function ParticipationPage() {
-  const { role } = useCurrentUser()
+  const { role, id: myId } = useCurrentUser()
   const { toast } = useToast()
   const qc = useQueryClient()
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -80,19 +80,18 @@ export default function ParticipationPage() {
     {
       key: 'proofUrl',
       label: 'Proof',
-      render: (v) =>
-        v ? (
-          <a
-            href={v as string}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-brand-primary hover:underline"
-          >
-            <ExternalLink className="h-3.5 w-3.5" /> View
-          </a>
-        ) : (
-          <span className="text-brand-muted">—</span>
-        ),
+      render: (v, r) => (
+        <div className="flex items-center gap-2">
+          <ProofButton url={v as string | null} />
+          {r.userId === myId && r.approvalStatus !== 'APPROVED' && (
+            <UploadProofButton
+              participationId={r.id}
+              onUploaded={invalidate}
+              label={v ? 'Replace' : 'Upload'}
+            />
+          )}
+        </div>
+      ),
     },
     {
       key: 'pointsEarned',

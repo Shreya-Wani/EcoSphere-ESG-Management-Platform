@@ -1,8 +1,9 @@
 'use client'
 
-import { Check, X, ExternalLink } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { StatusPill } from './status-pill'
 import { EmptyState } from './empty-state'
+import { ProofButton } from './proof-viewer'
 import { initialsOf } from '@/lib/utils'
 
 export interface ApprovalItem {
@@ -77,14 +78,7 @@ export function ApprovalQueue({
 
   const Proof = ({ url }: { url?: string | null }) =>
     url ? (
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
-      >
-        <ExternalLink className="h-3.5 w-3.5" /> View
-      </a>
+      <ProofButton url={url} />
     ) : (
       <span className="text-xs text-brand-muted">No proof</span>
     )
