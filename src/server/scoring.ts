@@ -26,7 +26,7 @@
 
 import { db } from '@/db'
 import { departments, departmentScores, esgConfig } from '@/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 export type ScorePeriod = string // "2026-07"
 
@@ -235,34 +235,62 @@ export async function getOverall(
 }
 
 // =============================================================
-// STUB PROVIDERS — one per pillar, each returns 0.
-// These exist so the registry/engine/dashboard have something to
-// fan in over before the real pillar providers land. Pillar owners:
-// REPLACE your stub in registerProviders() with your real provider.
+// STUB PROVIDERS — one per pillar.
+// These exist so the registry/engine/dashboard have something to fan in
+// over before the real pillar providers land. To keep the demo showing
+// believable, non-zero, rankable numbers (and to make recalculate
+// non-destructive), each stub returns the department's LAST PERSISTED
+// value for its pillar (from the seed / previous recalculate), falling
+// back to a deterministic code-derived number when no row exists yet.
+// The moment a pillar owner REPLACES their stub in registerProviders()
+// with a real provider, the real score takes over automatically.
 // =============================================================
-export const environmentalScoreStub: ScoreProvider = {
-  pillar: 'environmental',
-  name: 'environmental-stub',
-  async getScore() {
-    return 0
-  },
+
+/** Last persisted pillar value for a department+period, or null. */
+async function lastPersistedPillar(
+  pillar: keyof ScoreBreakdown,
+  deptId: string,
+  period: ScorePeriod,
+): Promise<number | null> {
+  const rows = await db
+    .select({
+      environmental: departmentScores.environmental,
+      social: departmentScores.social,
+      governance: departmentScores.governance,
+    })
+    .from(departmentScores)
+    .where(
+      and(
+        eq(departmentScores.departmentId, deptId),
+        eq(departmentScores.period, period),
+      ),
+    )
+    .limit(1)
+  const row = rows[0]
+  return row ? row[pillar] : null
 }
 
-export const socialScoreStub: ScoreProvider = {
-  pillar: 'social',
-  name: 'social-stub',
-  async getScore() {
-    return 0
-  },
+/** Deterministic 55..85 fallback derived from the dept id (stable). */
+function deterministicFallback(deptId: string): number {
+  let h = 0
+  for (let i = 0; i < deptId.length; i++) h = (h * 31 + deptId.charCodeAt(i)) | 0
+  return 55 + (Math.abs(h) % 31) // 55..85
 }
 
-export const governanceScoreStub: ScoreProvider = {
-  pillar: 'governance',
-  name: 'governance-stub',
-  async getScore() {
-    return 0
-  },
+function makePillarStub(pillar: keyof ScoreBreakdown): ScoreProvider {
+  return {
+    pillar,
+    name: `${pillar}-stub`,
+    async getScore(deptId, period) {
+      const persisted = await lastPersistedPillar(pillar, deptId, period)
+      return persisted ?? deterministicFallback(deptId)
+    },
+  }
 }
+
+export const environmentalScoreStub: ScoreProvider = makePillarStub('environmental')
+export const socialScoreStub: ScoreProvider = makePillarStub('social')
+export const governanceScoreStub: ScoreProvider = makePillarStub('governance')
 
 /**
  * Central registration point for domain ScoreProviders.
