@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
+import { AuthTabs } from './auth-tabs'
 
 // Seeded demo accounts (all share password `demo1234`) — one per role so the
 // permission model can be demoed by switching accounts, since role is assigned
-// per user, not chosen at login.
+// per user, not chosen at login. DO NOT change: judges rely on one-click access.
 const DEMO_ACCOUNTS: { label: string; email: string }[] = [
   { label: 'Admin', email: 'admin@ecosphere.dev' },
   { label: 'ESG Manager', email: 'esg@ecosphere.dev' },
@@ -19,14 +20,14 @@ const DEMO_PASSWORD = 'demo1234'
 
 export default function SignIn() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [demoError, setDemoError] = useState('')
+  const [demoLoading, setDemoLoading] = useState(false)
 
+  // Unchanged one-click demo login: signs in a seeded role account and lands
+  // on the dashboard. Kept isolated from the real Sign In / Sign Up forms.
   const login = async (loginEmail: string, loginPassword: string) => {
-    setError('')
-    setLoading(true)
+    setDemoError('')
+    setDemoLoading(true)
     try {
       const result = await signIn('credentials', {
         email: loginEmail,
@@ -35,28 +36,23 @@ export default function SignIn() {
       })
 
       if (!result?.ok) {
-        setError('Invalid email or password')
+        setDemoError('Invalid email or password')
         return
       }
 
       router.push('/dashboard')
       router.refresh()
-    } catch (err) {
-      setError('An error occurred. Please try again.')
+    } catch {
+      setDemoError('An error occurred. Please try again.')
     } finally {
-      setLoading(false)
+      setDemoLoading(false)
     }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await login(email, password)
   }
 
   return (
     <div className="flex min-h-screen bg-surface">
       {/* Left Panel - Brand */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-[#33503C] p-14 text-white lg:flex lg:w-[45%]">
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-[#33503C] p-14 text-white lg:flex lg:w-[45%] lg:sticky lg:top-0 lg:h-screen lg:self-start">
         <div className="pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full bg-white/[0.04]" />
         <div className="pointer-events-none absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-white/[0.03]" />
 
@@ -93,66 +89,33 @@ export default function SignIn() {
         <div className="relative text-[11.5px] text-white/45">© 2026 EcoSphere · ESG Management Platform</div>
       </div>
 
-      {/* Right Panel - Form */}
-      <div className="flex flex-1 items-center justify-center bg-surface p-6 sm:p-12">
-        <div className="w-full max-w-md">
-          <h2 className="mb-2 text-[20px] font-semibold text-ink">Welcome back</h2>
-          <p className="mb-8 text-[13px] text-ink-2">Sign in to your ESG management platform</p>
+      {/* Right Panel - Access */}
+      <div className="flex flex-1 items-center justify-center bg-surface p-6 sm:p-10">
+        <div className="w-full max-w-md py-8">
+          <h2 className="mb-2 text-[20px] font-semibold text-ink">Welcome to EcoSphere</h2>
+          <p className="mb-7 text-[13px] text-ink-2">
+            Explore instantly with a demo role, or use your own account.
+          </p>
 
-          {error && (
-            <div className="mb-6 rounded-lg border border-pill-red-fg/30 bg-pill-red-bg p-3 text-sm text-pill-red-fg">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold text-ink">Work Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full rounded-lg border border-input-line bg-surface px-4 py-2.5 text-[13.5px] text-ink outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                placeholder="you@company.com"
-              />
+          {/* 1 — Demo Role Access (existing one-click login for judges) */}
+          <section aria-label="Demo role access">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[12px] font-semibold text-ink">Demo Role Access</span>
+              <span className="text-[11px] text-faint">One-click · no password</span>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold text-ink">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full rounded-lg border border-input-line bg-surface px-4 py-2.5 text-[13.5px] text-ink outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15"
-                placeholder="••••••••"
-              />
-            </div>
+            {demoError && (
+              <div className="mb-3 rounded-lg border border-pill-red-fg/30 bg-pill-red-bg p-3 text-[12.5px] font-medium text-pill-red-fg">
+                {demoError}
+              </div>
+            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-brand-primary py-2.5 text-[13.5px] font-semibold text-white transition-colors hover:bg-brand-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </form>
-
-          <div className="mt-8">
-            <div className="mb-3 flex items-center gap-3">
-              <div className="h-px flex-1 bg-input-line" />
-              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-2">
-                Quick demo login
-              </span>
-              <div className="h-px flex-1 bg-input-line" />
-            </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {DEMO_ACCOUNTS.map((acct) => (
                 <button
                   key={acct.email}
                   type="button"
-                  disabled={loading}
+                  disabled={demoLoading}
                   onClick={() => login(acct.email, DEMO_PASSWORD)}
                   className="rounded-lg border border-input-line bg-surface px-3 py-2 text-[12.5px] font-semibold text-ink transition-colors hover:border-brand-primary hover:bg-brand-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -160,11 +123,23 @@ export default function SignIn() {
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-center text-[11.5px] text-ink-2">
+            <p className="mt-3 text-[11.5px] text-ink-2">
               Each account demonstrates a different role · password{' '}
               <span className="font-medium">demo1234</span>
             </p>
+          </section>
+
+          {/* 2 — Divider */}
+          <div className="my-7 flex items-center gap-3">
+            <div className="h-px flex-1 bg-input-line" />
+            <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-2">
+              Or continue with your account
+            </span>
+            <div className="h-px flex-1 bg-input-line" />
           </div>
+
+          {/* 3 — Real Sign In / Sign Up */}
+          <AuthTabs />
         </div>
       </div>
     </div>

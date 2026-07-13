@@ -22,6 +22,7 @@ import {
   ArrowRight,
   Quote,
 } from 'lucide-react'
+import { ThemeToggle } from '@/components/app-shell/theme-toggle'
 
 // =============================================================
 // EcoSphere — Marketing landing page (root route `/`)
@@ -171,6 +172,7 @@ export function LandingPage() {
             <a href="#eh-impact" className="text-[14px] font-medium text-ink-2 hover:text-ink">Impact</a>
           </div>
           <div className="ml-auto flex items-center gap-3 lg:ml-0">
+            <ThemeToggle />
             <button onClick={go} className="hidden h-[38px] rounded-lg px-4 text-[14px] font-semibold text-ink hover:bg-hover sm:block">Sign in</button>
             <button onClick={go} className="h-[38px] rounded-lg bg-brand-primary px-[18px] text-[14px] font-semibold text-white shadow-sm hover:bg-brand-primary-dark">Get started</button>
           </div>
